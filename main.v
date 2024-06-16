@@ -61,7 +61,6 @@ fn escape_tag(main_content string, mut parents []Balise, mut stack []&Balise, nb
 	mut nb := nb_
 	in_balise := false
 	if stack.len == 1 {
-		dump(parents)
 		parents << *stack.pop()
 	} else {
 		stack.pop()
@@ -87,6 +86,8 @@ fn get_tree() []Balise {
 				if main_content[nb + 1] == `>` {
 					nb, in_balise = escape_tag(main_content, mut parents, mut stack, nb,
 						in_balise)
+				} else {
+					stack[stack.len-1].attr += "/"
 				}
 			} else if c == `>` {
 				in_balise = false
@@ -94,7 +95,13 @@ fn get_tree() []Balise {
 					stack.pop()
 				}
 			} else {
+				if !(c in [`\t`, `\n`]) {
 				stack[stack.len - 1].attr += c.ascii_str()
+				} else {
+					if c == `\n` {
+						stack[stack.len-1].attr += " "
+					}
+				}
 			}
 		} else {
 			if c == `<` {
@@ -105,12 +112,18 @@ fn get_tree() []Balise {
 					nb, in_balise = escape_tag(main_content, mut parents, mut stack, nb,
 						in_balise)
 				} else {
+					old_nb := nb
 					for !(main_content[nb] in [` `, `>`, `\n`]) {
-						if main_content[nb] == `<` {
-							continue parse
-						}
+						if (main_content[nb] >= `A` && main_content[nb] <= `Z`) || (main_content[nb] >= `a` && main_content[nb] <= `z`) || main_content[nb] == `!` || (main_content[nb] >= `0` && main_content[nb] <= `9`) {
 						name += main_content[nb].ascii_str()
 						nb += 1
+						} else {
+							in_balise = false
+							// debug println("not name ${main_content[nb].ascii_str()}  name:${name}")
+							stack[stack.len - 1].txt += "<"
+							nb = old_nb
+							continue parse
+						}
 					}
 					name = name.to_lower()
 					if name[0] == `!` {
@@ -149,8 +162,6 @@ fn get_tree() []Balise {
 				}
 			}
 		}
-		dump(stack)
-		//		$dbg;
 		nb += 1
 	}
 	return parents
