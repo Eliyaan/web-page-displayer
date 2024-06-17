@@ -89,9 +89,7 @@ fn get_tree(url string) []Balise {
 			}
 		} else {
 			if c == `<` {
-				if !p.process_open_tag() {
-					continue parse
-				}
+				p.process_open_tag()		
 			} else {
 				if c !in [`\t`] && p.stack.len > 0 {
 					p.stack[p.stack.len - 1].txt += c.ascii_str()
@@ -123,13 +121,13 @@ fn (mut p Parse) close_tag() {
 	}
 }
 
-fn (mut p Parse) process_open_tag() bool {
-	p.in_balise = true
-	mut name := ''
+fn (mut p Parse) process_open_tag() {
 	p.nb += 1
 	if p.main_content[p.nb] == `/` {
 		p.escape_tag()
 	} else {
+		p.in_balise = true
+		mut name := ''
 		old_nb := p.nb
 		for p.main_content[p.nb] !in [` `, `>`, `\n`] {
 			if is_valid_tag_name_char(p.main_content[p.nb]) {
@@ -139,10 +137,11 @@ fn (mut p Parse) process_open_tag() bool {
 				p.in_balise = false
 				// debug println("not name ${main_content[nb].ascii_str()}  name:${name}")
 				p.stack[p.stack.len - 1].txt += '<' // to not lose the <
-				p.nb = old_nb
-				return false // not opening a tag
+				p.nb = old_nb - 1
+				return 
 			}
 		}
+		if name.len > 0 {
 		name = name.to_lower()
 		if name[0] == `!` {
 			if name == '!doctype' {
@@ -170,8 +169,12 @@ fn (mut p Parse) process_open_tag() bool {
 			}
 			p.in_balise = false
 		}
+		} else {
+			p.in_balise = false
+			p.nb -= 1
+			p.stack[p.stack.len - 1].txt += '<' // to not lose the <			
+		}
 	}
-	return true // tag handled
 }
 
 fn is_valid_tag_name_char(c u8) bool {
