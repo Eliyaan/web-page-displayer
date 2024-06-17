@@ -10,7 +10,7 @@ enum Variant {
 	svg
 	path
 	defs
-	clip_path
+	clippath
 	rect
 	aside
 	input
@@ -54,115 +54,126 @@ mut:
 }
 
 fn main() {
-	println(get_tree())
+	println(get_tree('https://modules.vlang.io/gg.html'))
 }
 
-fn escape_tag(main_content string, mut parents []Balise, mut stack []&Balise, nb_ int, in_balise_ bool) (int, bool) {
-	mut nb := nb_
-	in_balise := false
-	if stack.len == 1 {
-		parents << *stack.pop()
+fn (mut p Parse) escape_tag() {
+	p.in_balise = false
+	if p.stack.len == 1 {
+		p.parents << *p.stack.pop()
 	} else {
-		stack.pop()
+		p.stack.pop()
 	}
-	nb += 1
-	for main_content[nb] != `>` {
-		nb += 1
+	p.nb += 1
+	for p.main_content[p.nb] != `>` {
+		p.nb += 1
 	}
-	return nb, in_balise
 }
 
-fn get_tree() []Balise {
-	res := http.get('https://modules.vlang.io/gg.html') or { panic('http get err: ${err}') }
-	mut main_content := res.body
-	mut parents := []Balise{}
-	mut stack := []&Balise{}
-	mut in_balise := false
-	mut nb := 0
-	parse: for nb < main_content.len {
-		c := main_content[nb]
-		if in_balise {
-			if c == `/` {
-				if main_content[nb + 1] == `>` {
-					nb, in_balise = escape_tag(main_content, mut parents, mut stack, nb,
-						in_balise)
-				} else {
-					stack[stack.len-1].attr += "/"
-				}
+fn (mut p Parse) close_tag() {
+	p.in_balise = false
+	if p.stack.last().@type in [.br, .hr, .doctype, .meta, .link, .title, .path] {
+		p.stack.pop()
+	}
+}
+
+fn is_valid_tag_name_char(c u8) bool {
+	return (c >= `A` && c <= `Z`) || (c >= `a` && c <= `z`) || c == `!` || (c >= `0` && c <= `9`)
+}
+
+struct Parse {
+mut:
+	main_content string
+	parents      []Balise
+	stack        []&Balise
+	in_balise    bool
+	nb           int
+}
+
+fn get_tree(url string) []Balise {
+	res := http.get(url) or { panic('http get err: ${err}') }
+	mut p := Parse{
+		main_content: res.body
+	}
+	parse: for p.nb < p.main_content.len {
+		c := p.main_content[p.nb]
+		if p.in_balise {
+			if c == `/` && p.main_content[p.nb + 1] == `>` {
+				p.escape_tag()
 			} else if c == `>` {
-				in_balise = false
-				if stack.last().@type in [.br, .hr, .doctype, .meta, .link, .title, .path] {
-					stack.pop()
-				}
+				p.close_tag()
 			} else {
-				if !(c in [`\t`, `\n`]) {
-				stack[stack.len - 1].attr += c.ascii_str()
-				} else {
+				if c != `\t` {
 					if c == `\n` {
-						stack[stack.len-1].attr += " "
+						p.stack[p.stack.len - 1].attr += ' '
+					} else {
+						p.stack[p.stack.len - 1].attr += c.ascii_str()
 					}
 				}
 			}
 		} else {
 			if c == `<` {
-				in_balise = true
-				mut name := ''
-				nb += 1
-				if main_content[nb] == `/` {
-					nb, in_balise = escape_tag(main_content, mut parents, mut stack, nb,
-						in_balise)
-				} else {
-					old_nb := nb
-					for !(main_content[nb] in [` `, `>`, `\n`]) {
-						if (main_content[nb] >= `A` && main_content[nb] <= `Z`) || (main_content[nb] >= `a` && main_content[nb] <= `z`) || main_content[nb] == `!` || (main_content[nb] >= `0` && main_content[nb] <= `9`) {
-						name += main_content[nb].ascii_str()
-						nb += 1
-						} else {
-							in_balise = false
-							// debug println("not name ${main_content[nb].ascii_str()}  name:${name}")
-							stack[stack.len - 1].txt += "<"
-							nb = old_nb
-							continue parse
-						}
-					}
-					name = name.to_lower()
-					if name[0] == `!` {
-						if name == '!doctype' {
-							name = 'doctype'
-						}
-					} else if name[0] == `c` {
-						if name == 'clipPath' {
-							name = 'clip_path'
-						}
-					}
-					if vari := Variant.from(name) {
-						if main_content[nb] == `>` {
-							in_balise = false
-						}
-						if stack.len > 0 {
-							stack[stack.len - 1].children << Balise{
-								@type: vari
-							}
-							stack << &stack[stack.len - 1].children[stack[stack.len - 1].children.len - 1]
-						} else {
-							stack << &Balise{
-								@type: vari
-							}
-						}
-					} else {
-						println('${err} : ${name}')
-						for main_content[nb] != `>` {
-							nb += 1
-						}
-					}
+				if !p.process_open_tag() {
+					continue parse
 				}
 			} else {
-				if c !in [`\n`, `\t`] {
-					stack[stack.len - 1].txt += c.ascii_str()
+				if c !in [`\t`] && p.stack.len > 0 {
+					p.stack[p.stack.len - 1].txt += c.ascii_str()
 				}
 			}
 		}
-		nb += 1
+		p.nb += 1
 	}
-	return parents
+	return p.parents
+}
+
+fn (mut p Parse) process_open_tag() bool {
+	p.in_balise = true
+	mut name := ''
+	p.nb += 1
+	if p.main_content[p.nb] == `/` {
+		p.escape_tag()
+	} else {
+		old_nb := p.nb
+		for p.main_content[p.nb] !in [` `, `>`, `\n`] {
+			if is_valid_tag_name_char(p.main_content[p.nb]) {
+				name += p.main_content[p.nb].ascii_str()
+				p.nb += 1
+			} else {
+				p.in_balise = false
+				// debug println("not name ${main_content[nb].ascii_str()}  name:${name}")
+				p.stack[p.stack.len - 1].txt += '<' // to not lose the <
+				p.nb = old_nb
+				return false // not opening a tag
+			}
+		}
+		name = name.to_lower()
+		if name[0] == `!` {
+			if name == '!doctype' {
+				name = 'doctype'
+			}
+		}
+		if vari := Variant.from(name) {
+			if p.main_content[p.nb] == `>` {
+				p.in_balise = false
+			}
+			if p.stack.len > 0 {
+				p.stack[p.stack.len - 1].children << Balise{
+					@type: vari
+				}
+				p.stack << &p.stack[p.stack.len - 1].children[p.stack[p.stack.len - 1].children.len - 1]
+			} else {
+				p.stack << &Balise{
+					@type: vari
+				}
+			}
+		} else { // does not handle all the bad cases
+			println('${err} : {name}. The parser wont work as intended.')
+			for p.main_content[p.nb] != `>` {
+				p.nb += 1
+			}
+			p.in_balise = false
+		}
+	}
+	return true // tag handled
 }
