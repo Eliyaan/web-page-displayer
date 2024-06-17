@@ -1,5 +1,7 @@
 import net.http
 
+const non_closing = [Variant.br, .img, .hr, .doctype, .meta, .link, .title, .path] 
+
 struct Parse {
 mut:
 	main_content string
@@ -12,10 +14,15 @@ mut:
 enum Variant {
 	doctype
 	head
+	blockquote
+	time
 	meta
 	link
 	title
+	article
 	style
+	main
+	footer
 	svg
 	path
 	defs
@@ -52,6 +59,10 @@ enum Variant {
 	tr
 	td
 	pre
+	thead
+	tbody
+	th
+	img
 }
 
 struct Balise { // replace with english name
@@ -63,7 +74,8 @@ mut:
 }
 
 fn main() {
-	println(get_tree('https://modules.vlang.io/gg.html'))
+	//println(get_tree('https://docs.vlang.io/introduction.html')) does not work yet
+	println(get_tree('https://modules.vlang.io/index.html'))
 }
 
 fn get_tree(url string) []Balise {
@@ -116,7 +128,7 @@ fn (mut p Parse) escape_tag() {
 
 fn (mut p Parse) close_tag() {
 	p.in_balise = false
-	if p.stack.last().@type in [.br, .hr, .doctype, .meta, .link, .title, .path] {
+	if p.stack.last().@type in non_closing {
 		p.stack.pop()
 	}
 }
