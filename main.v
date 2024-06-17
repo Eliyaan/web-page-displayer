@@ -1,5 +1,14 @@
 import net.http
 
+struct Parse {
+mut:
+	main_content string
+	parents      []Balise
+	stack        []&Balise
+	in_balise    bool
+	nb           int
+}
+
 enum Variant {
 	doctype
 	head
@@ -57,39 +66,6 @@ fn main() {
 	println(get_tree('https://modules.vlang.io/gg.html'))
 }
 
-fn (mut p Parse) escape_tag() {
-	p.in_balise = false
-	if p.stack.len == 1 {
-		p.parents << *p.stack.pop()
-	} else {
-		p.stack.pop()
-	}
-	p.nb += 1
-	for p.main_content[p.nb] != `>` {
-		p.nb += 1
-	}
-}
-
-fn (mut p Parse) close_tag() {
-	p.in_balise = false
-	if p.stack.last().@type in [.br, .hr, .doctype, .meta, .link, .title, .path] {
-		p.stack.pop()
-	}
-}
-
-fn is_valid_tag_name_char(c u8) bool {
-	return (c >= `A` && c <= `Z`) || (c >= `a` && c <= `z`) || c == `!` || (c >= `0` && c <= `9`)
-}
-
-struct Parse {
-mut:
-	main_content string
-	parents      []Balise
-	stack        []&Balise
-	in_balise    bool
-	nb           int
-}
-
 fn get_tree(url string) []Balise {
 	res := http.get(url) or { panic('http get err: ${err}') }
 	mut p := Parse{
@@ -125,6 +101,26 @@ fn get_tree(url string) []Balise {
 		p.nb += 1
 	}
 	return p.parents
+}
+
+fn (mut p Parse) escape_tag() {
+	p.in_balise = false
+	if p.stack.len == 1 {
+		p.parents << *p.stack.pop()
+	} else {
+		p.stack.pop()
+	}
+	p.nb += 1
+	for p.main_content[p.nb] != `>` {
+		p.nb += 1
+	}
+}
+
+fn (mut p Parse) close_tag() {
+	p.in_balise = false
+	if p.stack.last().@type in [.br, .hr, .doctype, .meta, .link, .title, .path] {
+		p.stack.pop()
+	}
 }
 
 fn (mut p Parse) process_open_tag() bool {
@@ -168,7 +164,7 @@ fn (mut p Parse) process_open_tag() bool {
 				}
 			}
 		} else { // does not handle all the bad cases
-			println('${err} : {name}. The parser wont work as intended.')
+			println('${err} : ${name}. The parser wont work as intended.')
 			for p.main_content[p.nb] != `>` {
 				p.nb += 1
 			}
@@ -176,4 +172,8 @@ fn (mut p Parse) process_open_tag() bool {
 		}
 	}
 	return true // tag handled
+}
+
+fn is_valid_tag_name_char(c u8) bool {
+	return (c >= `A` && c <= `Z`) || (c >= `a` && c <= `z`) || c == `!` || (c >= `0` && c <= `9`)
 }
