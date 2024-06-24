@@ -1,7 +1,13 @@
 import net.http
 import gg
+import gx
+import os
 
 const non_closing = [Variant.br, .img, .hr, .doctype, .meta, .link, .title, .path]
+const basic_cfg = gx.TextCfg{
+	color: gg.Color{200, 200, 200, 255}
+	size: 16
+}
 
 struct Parse {
 mut:
@@ -82,8 +88,10 @@ type Element = Balise | RawText
 
 struct App {
 mut:
-	ctx  &gg.Context = unsafe { nil }
-	tree []Element
+	ctx    &gg.Context = unsafe { nil }
+	tree   []Element
+	render []string
+	s_size gg.Size
 }
 
 fn main() {
@@ -91,52 +99,102 @@ fn main() {
 	mut app := App{
 		tree: get_tree('https://modules.vlang.io/gg.html')
 	}
-	app.ctx = gg.new_context(create_window: true, user_data: &app, frame_fn: frame, event_fn: event)
-	println(app.tree[0].get(.section, "doc-node", "readme_gg") or {return}.raw_text())
-	//app.ctx.run()
+	app.ctx = gg.new_context(
+		create_window: true
+		user_data: &app
+		frame_fn: frame
+		event_fn: event
+		font_path: os.resource_abs_path('0xProtoNerdFontMono-Regular.ttf')
+	)
+
+	app.ctx.run()
+}
+
+fn event(e &gg.Event, mut app App) {}
+
+fn frame(mut app App) {
+	if gg.window_size() != app.s_size {
+		app.render = organise_render(app.tree[0].get(.section, 'doc-node', 'readme_gg') or {
+			return
+		}.raw_text())
+		app.s_size = gg.window_size()
+	}
+	app.ctx.begin()
+	mut h := 0
+	line_height := 16 + 4
+	for l in app.render {
+		if l != '' {
+			app.ctx.draw_text(0, h, l, basic_cfg)
+			h += line_height
+		}
+	}
+	app.ctx.end()
+}
+
+fn organise_render(txt string) []string { // TODO split line on space if possible
+	mut output := []string{}
+	size := gg.window_size()
+	line_length := size.width / 8
+	if line_length != 0 {
+		txt_s := txt.split('\n')
+		for line in txt_s {
+			if line.len <= line_length {
+				output << line
+			} else {
+				mut n := 0
+				for n < line.len {
+					output << line#[n..n + line_length]
+					n += line_length
+				}
+			}
+		}
+	} else {
+		println('line_length = 0, not normal')
+	}
+	return output
 }
 
 fn (e Element) get(v Variant, class string, id string) ?Element {
 	if e is Balise {
-		type_check := e.@type == v
-		class_check := class == "" || e.attr.contains("class=\""+class+"\"")
-		id_check := id == "" || e.attr.contains("id=\""+id+"\"")
-		if type_check && class_check && id_check {
+		if e.check_is(v, class, id) {
 			return e
 		} else {
 			for c in e.children {
 				if a := c.get(v, class, id) {
 					return a
-				} 
+				}
 			}
 		}
 	}
 	return none
 }
 
+fn (b Balise) check_is(v Variant, class string, id string) bool {
+	
+		type_check := b.@type == v
+		class_check := class == '' || b.attr.contains('class="' + class + '"')
+		id_check := id == '' || b.attr.contains('id="' + id + '"')
+		return type_check && class_check && id_check
+
+
+}
+
 fn (e Element) raw_text() string {
-	mut s := ""
+	mut s := ''
 	if e is RawText {
 		s += e.txt
 	} else if e is Balise {
 		if e.@type == .p {
-			s += "\n"
+			s += '\n'
 		}
 		for c in e.children {
 			s += c.raw_text()
 		}
 		if e.@type == .p {
-			s += "\n"
+			s += '\n'
 		}
 	}
 	return s
-}
-
-fn event(e &gg.Event, mut app App) {}
-
-fn frame(mut app App) {
-	// read_me := app.tree[0].children[1].children[1].children[1].children[0].children[0].children[0]
-	mut h := 0
 }
 
 fn get_tree(url string) []Element {
@@ -160,7 +218,9 @@ fn get_tree(url string) []Element {
 						} else {
 							tag.attr += c.ascii_str()
 						}
-					} else { panic("handle not balise ${@FILE_LINE}") }
+					} else {
+						panic('handle not balise ${@FILE_LINE}')
+					}
 				}
 			}
 		} else {
@@ -173,12 +233,15 @@ fn get_tree(url string) []Element {
 						mut l := last.children.len
 						if l == 0 || last.children[l - 1] is Balise {
 							last.children << RawText{}
-						} else {} // no problem
+						} else {
+						} // no problem
 						l = last.children.len
 						mut raw_txt := &last.children[l - 1]
 						if mut raw_txt is RawText {
 							raw_txt.txt += c.ascii_str()
-						} else { panic("handle not rawtext ${@FILE_LINE}") }
+						} else {
+							panic('handle not rawtext ${@FILE_LINE}')
+						}
 					}
 				}
 			}
@@ -229,10 +292,14 @@ fn (mut p Parse) process_open_tag() {
 				mut last := p.stack[p.stack.len - 1]
 				if mut last is Balise { // sure
 					mut child := &last.children[last.children.len - 1]
-					if mut child is RawText{
+					if mut child is RawText {
 						child.txt += '<' // to not lose the <
-					} else { panic("handle not raw text ${@FILE_LINE}") }
-				} else { panic("handle not balise ${@FILE_LINE}") }
+					} else {
+						panic('handle not raw text ${@FILE_LINE}')
+					}
+				} else {
+					panic('handle not balise ${@FILE_LINE}')
+				}
 				p.nb = old_nb - 1
 				return
 			}
@@ -255,7 +322,9 @@ fn (mut p Parse) process_open_tag() {
 							@type: vari
 						}
 						p.stack << &last.children[last.children.len - 1]
-					} else { panic("handle not balise ${@FILE_LINE}") }
+					} else {
+						panic('handle not balise ${@FILE_LINE}')
+					}
 				} else {
 					p.stack << &Balise{
 						@type: vari
@@ -271,10 +340,12 @@ fn (mut p Parse) process_open_tag() {
 		} else {
 			p.in_balise = false
 			p.nb -= 1
-			mut last := p.stack[p.stack.len-1]
+			mut last := p.stack[p.stack.len - 1]
 			if mut last is RawText {
 				last.txt += '<' // to not lose the <			
-			} else { panic("handle not rawtext ${@FILE_LINE}") }
+			} else {
+				panic('handle not rawtext ${@FILE_LINE}')
+			}
 		}
 	}
 }
