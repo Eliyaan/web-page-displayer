@@ -1,12 +1,13 @@
 import net.http
+import gg
 
-const non_closing = [Variant.br, .img, .hr, .doctype, .meta, .link, .title, .path] 
+const non_closing = [Variant.br, .img, .hr, .doctype, .meta, .link, .title, .path]
 
 struct Parse {
 mut:
 	main_content string
-	parents      []Balise
-	stack        []&Balise
+	parents      []Element
+	stack        []&Element
 	in_balise    bool
 	nb           int
 }
@@ -69,16 +70,40 @@ struct Balise { // replace with english name
 mut:
 	@type    Variant
 	attr     string // inside the balise
-	children []Balise
-	txt      string // raw text between start/end of the balise
+	children []Element
+}
+
+struct RawText {
+mut:
+	txt string
+}
+
+type Element = Balise | RawText
+
+struct App {
+mut:
+	ctx  &gg.Context = unsafe { nil }
+	tree []Element
 }
 
 fn main() {
-	//println(get_tree('https://docs.vlang.io/introduction.html')) does not work yet
-	println(get_tree('https://modules.vlang.io/index.html'))
+	// println(get_tree('https://docs.vlang.io/introduction.html')) does not work yet
+	mut app := App{
+		tree: get_tree('https://modules.vlang.io/gg.html')
+	}
+	app.ctx = gg.new_context(create_window: true, user_data: &app, frame_fn: frame, event_fn: event)
+	app.ctx.run()
 }
 
-fn get_tree(url string) []Balise {
+fn event(e &gg.Event, mut app App) {}
+
+fn frame(mut app App) {
+	// read_me := app.tree[0].children[1].children[1].children[1].children[0].children[0].children[0]
+	mut h := 0
+	// need to change the parser && change Balise when sumtype Element = Balise|RawText
+}
+
+fn get_tree(url string) []Element {
 	res := http.get(url) or { panic('http get err: ${err}') }
 	mut p := Parse{
 		main_content: res.body
@@ -92,19 +117,33 @@ fn get_tree(url string) []Balise {
 				p.close_tag()
 			} else {
 				if c != `\t` {
-					if c == `\n` {
-						p.stack[p.stack.len - 1].attr += ' '
-					} else {
-						p.stack[p.stack.len - 1].attr += c.ascii_str()
-					}
+					mut tag := &p.stack[p.stack.len - 1]
+					if mut tag is Balise {
+						if c == `\n` {
+							tag.attr += ' '
+						} else {
+							tag.attr += c.ascii_str()
+						}
+					} else { panic("handle not balise ${@FILE_LINE}") }
 				}
 			}
 		} else {
 			if c == `<` {
-				p.process_open_tag()		
+				p.process_open_tag()
 			} else {
-				if c !in [`\t`] && p.stack.len > 0 {
-					p.stack[p.stack.len - 1].txt += c.ascii_str()
+				if c != `\t` && p.stack.len > 0 {
+					mut last := &p.stack[p.stack.len - 1]
+					if mut last is Balise { // sure
+						mut l := last.children.len
+						if last.children[l - 1] is Balise {
+							last.children << RawText{}
+						} else { panic("handle not balise ${@FILE_LINE}") }
+						l = last.children.len
+						mut raw_txt := &last.children[l - 1]
+						if mut raw_txt is RawText {
+							raw_txt.txt += c.ascii_str()
+						} else { panic("handle not rawtext ${@FILE_LINE}") }
+					}
 				}
 			}
 		}
@@ -128,8 +167,11 @@ fn (mut p Parse) escape_tag() {
 
 fn (mut p Parse) close_tag() {
 	p.in_balise = false
-	if p.stack.last().@type in non_closing {
-		p.stack.pop()
+	last := p.stack.last()
+	if last is Balise {
+		if last.@type in non_closing {
+			p.stack.pop()
+		}
 	}
 }
 
@@ -148,43 +190,55 @@ fn (mut p Parse) process_open_tag() {
 			} else {
 				p.in_balise = false
 				// debug println("not name ${main_content[nb].ascii_str()}  name:${name}")
-				p.stack[p.stack.len - 1].txt += '<' // to not lose the <
+				mut last := &p.stack[p.stack.len - 1]
+				if mut last is Balise { // sure
+					mut child := &last.children[last.children.len - 1]
+					if mut child is RawText{
+						child.txt += '<' // to not lose the <
+					} else { panic("handle not raw text ${@FILE_LINE}") }
+				} else { panic("handle not balise ${@FILE_LINE}") }
 				p.nb = old_nb - 1
-				return 
+				return
 			}
 		}
 		if name.len > 0 {
-		name = name.to_lower()
-		if name[0] == `!` {
-			if name == '!doctype' {
-				name = 'doctype'
+			name = name.to_lower()
+			if name[0] == `!` {
+				if name == '!doctype' {
+					name = 'doctype'
+				}
 			}
-		}
-		if vari := Variant.from(name) {
-			if p.main_content[p.nb] == `>` {
+			if vari := Variant.from(name) {
+				if p.main_content[p.nb] == `>` {
+					p.in_balise = false
+				}
+				if p.stack.len > 0 {
+					mut last := &p.stack[p.stack.len - 1]
+					if mut last is Balise {
+						last.children << Balise{
+							@type: vari
+						}
+						p.stack << &last.children[last.children.len - 1]
+					} else { panic("handle not balise ${@FILE_LINE}") }
+				} else {
+					p.stack << &Balise{
+						@type: vari
+					}
+				}
+			} else { // does not handle all the bad cases
+				println('${err} : ${name}. The parser wont work as intended.')
+				for p.main_content[p.nb] != `>` {
+					p.nb += 1
+				}
 				p.in_balise = false
 			}
-			if p.stack.len > 0 {
-				p.stack[p.stack.len - 1].children << Balise{
-					@type: vari
-				}
-				p.stack << &p.stack[p.stack.len - 1].children[p.stack[p.stack.len - 1].children.len - 1]
-			} else {
-				p.stack << &Balise{
-					@type: vari
-				}
-			}
-		} else { // does not handle all the bad cases
-			println('${err} : ${name}. The parser wont work as intended.')
-			for p.main_content[p.nb] != `>` {
-				p.nb += 1
-			}
-			p.in_balise = false
-		}
 		} else {
 			p.in_balise = false
 			p.nb -= 1
-			p.stack[p.stack.len - 1].txt += '<' // to not lose the <			
+			mut last := &p.stack[p.stack.len-1]
+			if mut last is RawText {
+				last.txt += '<' // to not lose the <			
+			} else { panic("handle not rawtext ${@FILE_LINE}") }
 		}
 	}
 }
