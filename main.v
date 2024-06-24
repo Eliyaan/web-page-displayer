@@ -92,7 +92,44 @@ fn main() {
 		tree: get_tree('https://modules.vlang.io/gg.html')
 	}
 	app.ctx = gg.new_context(create_window: true, user_data: &app, frame_fn: frame, event_fn: event)
-	app.ctx.run()
+	println(app.tree[0].get(.section, "doc-node", "readme_gg") or {return}.raw_text())
+	//app.ctx.run()
+}
+
+fn (e Element) get(v Variant, class string, id string) ?Element {
+	if e is Balise {
+		type_check := e.@type == v
+		class_check := class == "" || e.attr.contains("class=\""+class+"\"")
+		id_check := id == "" || e.attr.contains("id=\""+id+"\"")
+		if type_check && class_check && id_check {
+			return e
+		} else {
+			for c in e.children {
+				if a := c.get(v, class, id) {
+					return a
+				} 
+			}
+		}
+	}
+	return none
+}
+
+fn (e Element) raw_text() string {
+	mut s := ""
+	if e is RawText {
+		s += e.txt
+	} else if e is Balise {
+		if e.@type == .p {
+			s += "\n"
+		}
+		for c in e.children {
+			s += c.raw_text()
+		}
+		if e.@type == .p {
+			s += "\n"
+		}
+	}
+	return s
 }
 
 fn event(e &gg.Event, mut app App) {}
@@ -100,7 +137,6 @@ fn event(e &gg.Event, mut app App) {}
 fn frame(mut app App) {
 	// read_me := app.tree[0].children[1].children[1].children[1].children[0].children[0].children[0]
 	mut h := 0
-	// need to change the parser && change Balise when sumtype Element = Balise|RawText
 }
 
 fn get_tree(url string) []Element {
@@ -117,7 +153,7 @@ fn get_tree(url string) []Element {
 				p.close_tag()
 			} else {
 				if c != `\t` {
-					mut tag := &p.stack[p.stack.len - 1]
+					mut tag := p.stack[p.stack.len - 1]
 					if mut tag is Balise {
 						if c == `\n` {
 							tag.attr += ' '
@@ -132,12 +168,12 @@ fn get_tree(url string) []Element {
 				p.process_open_tag()
 			} else {
 				if c != `\t` && p.stack.len > 0 {
-					mut last := &p.stack[p.stack.len - 1]
+					mut last := p.stack[p.stack.len - 1]
 					if mut last is Balise { // sure
 						mut l := last.children.len
-						if last.children[l - 1] is Balise {
+						if l == 0 || last.children[l - 1] is Balise {
 							last.children << RawText{}
-						} else { panic("handle not balise ${@FILE_LINE}") }
+						} else {} // no problem
 						l = last.children.len
 						mut raw_txt := &last.children[l - 1]
 						if mut raw_txt is RawText {
@@ -190,7 +226,7 @@ fn (mut p Parse) process_open_tag() {
 			} else {
 				p.in_balise = false
 				// debug println("not name ${main_content[nb].ascii_str()}  name:${name}")
-				mut last := &p.stack[p.stack.len - 1]
+				mut last := p.stack[p.stack.len - 1]
 				if mut last is Balise { // sure
 					mut child := &last.children[last.children.len - 1]
 					if mut child is RawText{
@@ -213,7 +249,7 @@ fn (mut p Parse) process_open_tag() {
 					p.in_balise = false
 				}
 				if p.stack.len > 0 {
-					mut last := &p.stack[p.stack.len - 1]
+					mut last := p.stack[p.stack.len - 1]
 					if mut last is Balise {
 						last.children << Balise{
 							@type: vari
@@ -235,7 +271,7 @@ fn (mut p Parse) process_open_tag() {
 		} else {
 			p.in_balise = false
 			p.nb -= 1
-			mut last := &p.stack[p.stack.len-1]
+			mut last := p.stack[p.stack.len-1]
 			if mut last is RawText {
 				last.txt += '<' // to not lose the <			
 			} else { panic("handle not rawtext ${@FILE_LINE}") }
