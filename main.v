@@ -86,55 +86,57 @@ mut:
 
 type Element = Balise | RawText
 
+interface Render {
+mut:
+	render(mut app App)
+	tree []Element
+}
+
 struct App {
 mut:
 	ctx    &gg.Context = unsafe { nil }
-	tree   []Element
-	render []string
 	s_size gg.Size
+	render Render
+	scroll int
 }
 
 fn main() {
 	// println(get_tree('https://docs.vlang.io/introduction.html')) does not work yet
 	mut app := App{
-		tree: get_tree('https://modules.vlang.io/gg.html')
+		render: VlangModules{tree:get_tree('https://modules.vlang.io/gg.html')}
 	}
 	app.ctx = gg.new_context(
 		create_window: true
 		user_data: &app
 		frame_fn: frame
 		event_fn: event
-		font_path: os.resource_abs_path('0xProtoNerdFontMono-Regular.ttf')
+		font_path: os.resource_abs_path('fonts/SourceCodePro-Medium.ttf')
 	)
 
 	app.ctx.run()
 }
 
-fn event(e &gg.Event, mut app App) {}
+fn event(e &gg.Event, mut app App) {
+	match e.typ {
+		.mouse_scroll {
+			app.scroll -= int(e.scroll_y) * 20
+			if app.scroll < 0 {
+				app.scroll = 0
+			}
+		}
+		else {}
+	}
+}
 
 fn frame(mut app App) {
-	if gg.window_size() != app.s_size {
-		app.render = organise_render(app.tree[0].get(.section, 'doc-node', 'readme_gg') or {
-			return
-		}.raw_text())
-		app.s_size = gg.window_size()
-	}
 	app.ctx.begin()
-	mut h := 0
-	line_height := 16 + 4
-	for l in app.render {
-		if l != '' {
-			app.ctx.draw_text(0, h, l, basic_cfg)
-			h += line_height
-		}
-	}
+	app.render.render(mut app)
 	app.ctx.end()
 }
 
-fn organise_render(txt string) []string { // TODO split line on space if possible
+fn organise_render(txt string, font_size int, width int) []string { // TODO split line on space if possible
 	mut output := []string{}
-	size := gg.window_size()
-	line_length := size.width / 8
+	line_length := width / (font_size/2)
 	if line_length != 0 {
 		txt_s := txt.split('\n')
 		for line in txt_s {
@@ -184,13 +186,13 @@ fn (e Element) raw_text() string {
 	if e is RawText {
 		s += e.txt
 	} else if e is Balise {
-		if e.@type == .p {
+		if e.@type in [.p, .pre] {
 			s += '\n'
 		}
 		for c in e.children {
 			s += c.raw_text()
 		}
-		if e.@type == .p {
+		if e.@type in [.p, .pre] {
 			s += '\n'
 		}
 	}
