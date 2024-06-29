@@ -88,8 +88,8 @@ type Element = Balise | RawText
 
 interface Render {
 mut:
-	render(mut app App)
 	tree []Element
+	render(mut app App)
 }
 
 struct App {
@@ -103,7 +103,9 @@ mut:
 fn main() {
 	// println(get_tree('https://docs.vlang.io/introduction.html')) does not work yet
 	mut app := App{
-		render: VlangModules{tree:get_tree('https://modules.vlang.io/gg.html')}
+		render: VlangModules{
+			tree: get_tree('https://modules.vlang.io/gg.html')
+		}
 	}
 	app.ctx = gg.new_context(
 		create_window: true
@@ -111,6 +113,7 @@ fn main() {
 		frame_fn: frame
 		event_fn: event
 		font_path: os.resource_abs_path('fonts/SourceCodePro-Medium.ttf')
+		ui_mode: true
 	)
 
 	app.ctx.run()
@@ -136,7 +139,7 @@ fn frame(mut app App) {
 
 fn organise_render(txt string, font_size int, width int) []string { // TODO split line on space if possible
 	mut output := []string{}
-	line_length := width / (font_size/2)
+	line_length := width / (font_size / 2)
 	if line_length != 0 {
 		txt_s := txt.split('\n')
 		for line in txt_s {
@@ -156,7 +159,7 @@ fn organise_render(txt string, font_size int, width int) []string { // TODO spli
 	return output
 }
 
-fn (e Element) get(v Variant, class string, id string) ?Element {
+fn (e Element) get(v Variant, class string, id string) ?Balise {
 	if e is Balise {
 		if e.check_is(v, class, id) {
 			return e
@@ -172,13 +175,12 @@ fn (e Element) get(v Variant, class string, id string) ?Element {
 }
 
 fn (b Balise) check_is(v Variant, class string, id string) bool {
-	
-		type_check := b.@type == v
-		class_check := class == '' || b.attr.contains('class="' + class + '"')
-		id_check := id == '' || b.attr.contains('id="' + id + '"')
-		return type_check && class_check && id_check
-
-
+	if b.@type == v {
+		if class == '' || b.attr.contains('class="' + class + '"') {
+			return id == '' || b.attr.contains('id="' + id + '"')
+		}
+	}
+	return false
 }
 
 fn (e Element) raw_text() string {
