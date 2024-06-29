@@ -9,9 +9,14 @@ mut:
 		size: 18
 		color: gg.Color{255, 255, 255, 255}
 	}
-	h      int
-	w      int
-	line_h int
+	h       int
+	w       int
+	line_h  int
+	content Balise
+}
+
+fn (mut r VlangModules) init() {
+	r.content = r.tree[0].get(.div, 'doc-content', '') or { panic('did not find elem in page') }
 }
 
 fn (mut r VlangModules) render(mut app App) {
@@ -20,11 +25,11 @@ fn (mut r VlangModules) render(mut app App) {
 	}
 	app.ctx.draw_rect_filled(0, 0, app.s_size.width, app.s_size.height, gg.Color{26, 32, 44, 255})
 	r.h = -app.scroll
-	content := r.tree[0].get(.div, 'doc-content', '') or { panic('did not find elem in page') }
-	r.show(app, content, 100, 1900, r.text_cfg)
+	r.show(app, r.content, 100, 1900, r.text_cfg, false)
 }
 
-fn (mut v VlangModules) show(app App, b Balise, offset int, width int, cfg gx.TextCfg) {
+fn (mut v VlangModules) show(app App, b Balise, offset int, width int, cfg gx.TextCfg, in_code bool) {
+	mut code := in_code
 	size := match true {
 		b.check_is(.h1, '', '') { 26 }
 		b.check_is(.h2, '', '') { 22 }
@@ -33,6 +38,8 @@ fn (mut v VlangModules) show(app App, b Balise, offset int, width int, cfg gx.Te
 	text_cfg := gx.TextCfg{
 		size: size
 		color: match true {
+			b.check_is(.span, 'token symbol', '') { gg.Color{237, 100, 166, 255} }
+			b.check_is(.span, 'token comment', '') { gg.Color{160, 174, 192, 255} }
 			b.check_is(.span, 'token builtin', '') { gg.Color{104, 211, 145, 255} }
 			b.check_is(.span, 'token string', '') { gg.Color{104, 211, 145, 255} }
 			b.check_is(.span, 'token punctuation', '') { gg.Color{160, 174, 192, 255} }
@@ -57,15 +64,17 @@ fn (mut v VlangModules) show(app App, b Balise, offset int, width int, cfg gx.Te
 		v.w = 0
 	} else if b.check_is(.section, 'doc-node', '') {
 		v.h += v.line_h
+	} else if b.check_is(.code, '', '') {
+		code = true
 	}
 	if v.h < app.s_size.height {
 		for c in b.children {
 			match c {
 				Balise {
-					v.show(app, c, offset, width, text_cfg)
+					v.show(app, c, offset, width, text_cfg, code)
 				}
 				RawText {
-					if c.txt != `\n`.repeat(c.txt.len) {
+					if c.txt != linebreaks#[..c.txt.len] || in_code || code {
 						s := c.txt.split('\n')
 						for n, t in s {
 							if v.h >= 0 {

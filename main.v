@@ -8,6 +8,7 @@ const basic_cfg = gx.TextCfg{
 	color: gg.Color{200, 200, 200, 255}
 	size: 16
 }
+const linebreaks = '\n\n\n\n\n\n\n\n\n\n\n\n\n'
 
 struct Parse {
 mut:
@@ -90,6 +91,7 @@ interface Render {
 mut:
 	tree []Element
 	render(mut app App)
+	init()
 }
 
 struct App {
@@ -115,7 +117,7 @@ fn main() {
 		font_path: os.resource_abs_path('fonts/SourceCodePro-Medium.ttf')
 		ui_mode: true
 	)
-
+	app.render.init()
 	app.ctx.run()
 }
 
