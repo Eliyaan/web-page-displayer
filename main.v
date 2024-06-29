@@ -77,6 +77,8 @@ struct Balise { // replace with english name
 mut:
 	@type    Variant
 	attr     string // inside the balise
+	class    string
+	id       string
 	children []Element
 }
 
@@ -178,8 +180,8 @@ fn (e Element) get(v Variant, class string, id string) ?Balise {
 
 fn (b Balise) check_is(v Variant, class string, id string) bool {
 	if b.@type == v {
-		if class == '' || b.attr.contains('class="' + class + '"') {
-			return id == '' || b.attr.contains('id="' + id + '"')
+		if class == '' || b.class == class {
+			return id == '' || b.id == id
 		}
 	}
 	return false
@@ -272,8 +274,31 @@ fn (mut p Parse) escape_tag() {
 
 fn (mut p Parse) close_tag() {
 	p.in_balise = false
-	last := p.stack.last()
-	if last is Balise {
+	mut last := p.stack[p.stack.len - 1]
+	if mut last is Balise {
+		if i := last.attr.index('class=') {
+			start := i + 7
+			mut end := start + 1
+			for c in last.attr[start + 1..] {
+				if c == `"` {
+					break
+				}
+				end += 1
+			}
+			last.class = last.attr[start..end]
+		}
+		if i := last.attr.index('id=') {
+			start := i + 7
+			mut end := start + 1
+			for c in last.attr[start + 1..] {
+				if c == `"` {
+					break
+				}
+				end += 1
+			}
+			last.id = last.attr[start..end]
+		}
+		last.attr = '' // free memory I guess
 		if last.@type in non_closing {
 			p.stack.pop()
 		}
