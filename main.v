@@ -75,11 +75,13 @@ enum Variant {
 
 struct Balise { // replace with english name
 mut:
-	@type    Variant
-	attr     string // inside the balise
-	class    string
-	id       string
-	children []Element
+	@type     Variant
+	attr      string // inside the balise
+	class     string
+	id        string
+	children  []Element
+	codebox_h int
+	codebox_w int
 }
 
 struct RawText {
@@ -141,6 +143,7 @@ fn frame(mut app App) {
 	app.ctx.end()
 }
 
+// Not used
 fn organise_render(txt string, font_size int, width int) []string { // TODO split line on space if possible
 	mut output := []string{}
 	line_length := width / (font_size / 2)
@@ -205,6 +208,7 @@ fn (e Element) raw_text() string {
 	return s
 }
 
+@[direct_array_access]
 fn get_tree(url string) []Element {
 	res := http.get(url) or { panic('http get err: ${err}') }
 	mut p := Parse{
@@ -259,6 +263,7 @@ fn get_tree(url string) []Element {
 	return p.parents
 }
 
+@[direct_array_access]
 fn (mut p Parse) escape_tag() {
 	p.in_balise = false
 	if p.stack.len == 1 {
@@ -305,6 +310,7 @@ fn (mut p Parse) close_tag() {
 	}
 }
 
+@[direct_array_access]
 fn (mut p Parse) process_open_tag() {
 	p.nb += 1
 	if p.main_content[p.nb] == `/` {

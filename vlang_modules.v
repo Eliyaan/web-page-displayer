@@ -11,12 +11,14 @@ mut:
 	}
 	h       int
 	w       int
+	max_w   int
 	line_h  int
 	content Balise
 }
 
 fn (mut r VlangModules) init() {
 	r.content = r.tree[0].get(.div, 'doc-content', '') or { panic('did not find elem in page') }
+	r.tree = []
 }
 
 fn (mut r VlangModules) render(mut app App) {
@@ -25,16 +27,18 @@ fn (mut r VlangModules) render(mut app App) {
 	}
 	app.ctx.draw_rect_filled(0, 0, app.s_size.width, app.s_size.height, gg.Color{26, 32, 44, 255})
 	r.h = -app.scroll
-	r.show(app, r.content, 100, 1900, r.text_cfg, false)
+	r.show(app, mut r.content, 100, 1900, r.text_cfg, false)
 }
 
-fn (mut v VlangModules) show(app App, b Balise, offset int, width int, cfg gx.TextCfg, in_code bool) {
+fn (mut v VlangModules) show(app App, mut b Balise, offset int, width int, cfg gx.TextCfg, in_code bool) {
 	mut code := in_code
 	size := match true {
 		b.check_is(.h1, '', '') { 26 }
 		b.check_is(.h2, '', '') { 22 }
 		else { cfg.size }
 	}
+	base_h := v.h
+	base_w := v.w
 	text_cfg := gx.TextCfg{
 		size: size
 		color: match true {
@@ -66,12 +70,14 @@ fn (mut v VlangModules) show(app App, b Balise, offset int, width int, cfg gx.Te
 		v.h += v.line_h
 	} else if b.check_is(.code, '', '') {
 		code = true
+		v.max_w = v.w
+		app.ctx.draw_rect_filled(offset + v.w, v.h, b.codebox_w, b.codebox_h, gg.Color{45, 55, 72, 255})
 	}
 	if v.h < app.s_size.height {
-		for c in b.children {
-			match c {
+		for mut c in b.children {
+			match mut c {
 				Balise {
-					v.show(app, c, offset, width, text_cfg, code)
+					v.show(app, mut c, offset, width, text_cfg, code)
 				}
 				RawText {
 					if c.txt != linebreaks#[..c.txt.len] || in_code || code {
@@ -81,6 +87,9 @@ fn (mut v VlangModules) show(app App, b Balise, offset int, width int, cfg gx.Te
 								if v.w >= 0 && v.w < width {
 									app.ctx.draw_text(v.w + offset, v.h, t, text_cfg)
 									v.w += (t.len) * text_cfg.size / 2
+									if v.w > v.max_w {
+										v.max_w = v.w
+									}
 								} else {
 									v.h += v.line_h
 									v.w = 0
@@ -110,5 +119,8 @@ fn (mut v VlangModules) show(app App, b Balise, offset int, width int, cfg gx.Te
 		v.w = 0
 	} else if b.check_is(.section, 'doc-node', '') {
 		v.h += v.line_h
+	} else if b.check_is(.code, '', '') {
+		b.codebox_h = v.h - base_h + v.line_h
+		b.codebox_w = v.max_w - base_w
 	}
 }
