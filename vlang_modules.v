@@ -56,7 +56,7 @@ fn (mut v VlangModules) show_modules(app App, mut b Balise, offset int, width in
 					v.show_modules(app, mut c, offset, width, text_cfg)
 				}
 				RawText {
-					for t in c.txt.split('\n') {
+					for t in c.split_txt {
 						if v.h >= 0 && t != '' {
 							app.ctx.draw_text(v.w + offset, v.h, c.txt, text_cfg)
 							v.w += (c.txt.len) * text_cfg.size / 2
@@ -119,8 +119,7 @@ fn (mut v VlangModules) show_content(app App, mut b Balise, offset int, width in
 				}
 				RawText {
 					if c.txt != linebreaks#[..c.txt.len] || in_code || code {
-						s := c.txt.split('\n')
-						for n, t in s {
+						for n, t in c.split_txt {
 							if v.h >= 0 {
 								if v.w >= 0 && v.w + t.len * text_cfg.size / 2 < width {
 									app.ctx.draw_text(v.w + offset, v.h, t, text_cfg)
@@ -140,7 +139,7 @@ fn (mut v VlangModules) show_content(app App, mut b Balise, offset int, width in
 									v.w = t[i..].len * text_cfg.size / 2
 								}
 							}
-							if n < s.len - 1 && s.len > 1 {
+							if n < c.split_txt.len - 1 && c.split_txt.len > 1 {
 								v.h += v.line_h
 								v.w = 0
 							}

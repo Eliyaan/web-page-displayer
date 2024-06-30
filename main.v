@@ -87,6 +87,7 @@ mut:
 struct RawText {
 mut:
 	txt string
+	split_txt []string
 }
 
 type Element = Balise | RawText
@@ -269,6 +270,14 @@ fn (mut p Parse) escape_tag() {
 	if p.stack.len == 1 {
 		p.parents << *p.stack.pop()
 	} else {
+		mut last := p.stack[p.stack.len-1]
+		if mut last is Balise {
+						for mut last_child in last.children {
+							if mut last_child is RawText {
+								last_child.split_txt = last_child.txt.split("\n")
+							}
+						}
+		}
 		p.stack.pop()
 	}
 	p.nb += 1
