@@ -1,3 +1,6 @@
+/*
+This file handles modules.vlang.io
+*/
 import gg
 import gx
 
@@ -13,13 +16,24 @@ mut:
 	w       int
 	max_w   int
 	line_h  int
-	content Balise
-	modules Balise
+	content []Text
+	modules []Text
+}
+
+struct Text {
+mut:
+	t         string
+	h int
+	w int
+	size      u8
+	color     gg.Color
 }
 
 fn (mut r VlangModules) init() {
-	r.content = r.tree[0].get(.div, 'doc-content', '') or { panic('did not find elem in page') }
-	r.modules = r.tree[0].get(.nav, 'content hidden', '') or { panic('did not find elem in page') }
+	content := r.tree[0].get(.div, 'doc-content', '') or { panic('did not find elem in page') }
+	// r.show_content(app,  content, 1)
+	modules := r.tree[0].get(.nav, 'content hidden', '') or { panic('did not find elem in page') }
+	r.process_modules(modules, Text{ size: u8(r.text_cfg.size), color: gx.white })
 	r.tree = []
 }
 
@@ -29,43 +43,50 @@ fn (mut r VlangModules) render(mut app App) {
 	}
 	app.ctx.draw_rect_filled(300, 0, app.s_size.width, app.s_size.height, gg.Color{26, 32, 44, 255})
 	app.ctx.draw_rect_filled(0, 0, 300, app.s_size.height, gg.Color{45, 55, 72, 255})
+	r.show_modules(app, 15)
 	r.h = -app.scroll
-	r.show_modules(app, mut r.modules, 15, 300, r.text_cfg)
-	r.h = -app.scroll
-	r.show_content(app, mut r.content, 330, 1000, r.text_cfg, false)
+	// r.show_content(app, mut r.content, 330, 1000, r.text_cfg, false)
 }
 
-fn (mut v VlangModules) show_modules(app App, mut b Balise, offset int, width int, cfg gx.TextCfg) {
-	text_cfg := gx.TextCfg{
+fn (mut v VlangModules) show_modules(app App, offset int) {
+	for t in v.modules {
+		h := t.h - app.scroll
+		if h >= 0 {	
+			app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{color:t.color, size: t.size})
+			if h > app.s_size.height {
+				break
+			}
+		}
+	}
+}
+
+fn (mut v VlangModules) process_modules(b Balise, cfg Text) {
+	mut text := Text{
+		h: v.h
 		size: cfg.size
 		color: gg.Color{255, 255, 255, 255}
 	}
-	v.line_h = (text_cfg.size * 6) / 5
+	v.line_h = (text.size * 6) / 5
 	if b.@type == .li {
-		v.h += v.line_h
-		if b.check_is(.li, 'open', '') {
-			v.w = 0
-		} else {
-			v.w = 20
+		v.modules << text
+		if !b.check_is(.li, 'open', '') {
+			text.w = 20
 		}
 	}
-	if v.h < app.s_size.height {
-		for mut c in b.children {
-			match mut c {
-				Balise {
-					v.show_modules(app, mut c, offset, width, text_cfg)
-				}
-				RawText {
-					for t in c.split_txt {
-						if v.h >= 0 && t != '' {
-							app.ctx.draw_text(v.w + offset, v.h, c.txt, text_cfg)
-							v.w += (c.txt.len) * text_cfg.size / 2
-						}
-					}
+	for c in b.children {
+		match c {
+			Balise {
+				v.process_modules(c, text)
+			}
+			RawText {
+				if c.txt != linebreaks#[..c.txt.len] {
+				text.t = c.txt
+				v.modules << text
 				}
 			}
 		}
 	}
+	v.h += v.line_h
 }
 
 fn (mut v VlangModules) show_content(app App, mut b Balise, offset int, width int, cfg gx.TextCfg, in_code bool) {

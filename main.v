@@ -86,7 +86,7 @@ mut:
 
 struct RawText {
 mut:
-	txt string
+	txt       string
 	split_txt []string
 }
 
@@ -240,7 +240,7 @@ fn get_tree(url string) []Element {
 			if c == `<` {
 				p.process_open_tag()
 			} else {
-				if c != `\t` && p.stack.len > 0 {
+				if c != `\t` && p.stack.len > 0 { // TODO: need to find a way to handle tabs for code indentation
 					mut last := p.stack[p.stack.len - 1]
 					if mut last is Balise { // sure
 						mut l := last.children.len
@@ -270,13 +270,13 @@ fn (mut p Parse) escape_tag() {
 	if p.stack.len == 1 {
 		p.parents << *p.stack.pop()
 	} else {
-		mut last := p.stack[p.stack.len-1]
+		mut last := p.stack[p.stack.len - 1]
 		if mut last is Balise {
-						for mut last_child in last.children {
-							if mut last_child is RawText {
-								last_child.split_txt = last_child.txt.split("\n")
-							}
-						}
+			for mut last_child in last.children {
+				if mut last_child is RawText {
+					last_child.split_txt = last_child.txt.split('\n')
+				}
+			}
 		}
 		p.stack.pop()
 	}
