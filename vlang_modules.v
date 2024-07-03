@@ -30,10 +30,15 @@ mut:
 }
 
 fn (mut r VlangModules) init() {
+	base_txt := Text{
+		size: u8(r.text_cfg.size)
+		color: gx.white
+	}
 	content := r.tree[0].get(.div, 'doc-content', '') or { panic('did not find elem in page') }
-	// r.show_content(app,  content, 1)
+	r.process_content(content, 1000, base_txt, false)
+	r.h = 0
 	modules := r.tree[0].get(.nav, 'content hidden', '') or { panic('did not find elem in page') }
-	r.process_modules(modules, Text{ size: u8(r.text_cfg.size), color: gx.white }, false)
+	r.process_modules(modules, base_txt, false)
 	r.tree = []
 }
 
@@ -43,15 +48,27 @@ fn (mut r VlangModules) render(mut app App) {
 	}
 	app.ctx.draw_rect_filled(300, 0, app.s_size.width, app.s_size.height, gg.Color{26, 32, 44, 255})
 	app.ctx.draw_rect_filled(0, 0, 300, app.s_size.height, gg.Color{45, 55, 72, 255})
-	r.show_modules(app, 15)
 	r.h = -app.scroll
-	// r.show_content(app, mut r.content, 330, 1000, r.text_cfg, false)
+	r.show_modules(app, 15)
+	r.show_content(app, 330)
 }
 
-fn (mut v VlangModules) show_modules(app App, offset int) {
+fn (v VlangModules) show_modules(app App, offset int) {
 	for t in v.modules {
 		h := t.h - app.scroll
-		if h >= 0 {
+		if h - t.size >= 0 {
+			app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
+			if h > app.s_size.height {
+				break
+			}
+		}
+	}
+}
+
+fn (v VlangModules) show_content(app App, offset int) {
+	for t in v.content {
+		h := t.h - app.scroll
+		if h - t.size >= 0 {
 			app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
 			if h > app.s_size.height {
 				break
@@ -89,16 +106,16 @@ fn (mut v VlangModules) process_modules(b Balise, cfg Text, w_o bool) {
 	}
 }
 
-fn (mut v VlangModules) show_content(b Balise, w_o int, width int, cfg Text, in_code bool) {
+fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code bool) {
 	mut code := in_code
+	// base_h := v.h
+	// base_w := v.w
 	size := match true {
 		b.check_is(.h1, '', '') { 26 }
 		b.check_is(.h2, '', '') { 22 }
 		else { cfg.size }
 	}
-	base_h := v.h
-	base_w := v.w
-	text := Text{
+	mut text := Text{
 		size: size
 		color: match true {
 			b.check_is(.span, 'token symbol', '') { gg.Color{237, 100, 166, 255} }
@@ -113,7 +130,7 @@ fn (mut v VlangModules) show_content(b Balise, w_o int, width int, cfg Text, in_
 			else { cfg.color }
 		}
 	}
-	v.line_h = (text_cfg.size * 6) / 5
+	v.line_h = (text.size * 6) / 5
 	if b.@type in [.p, .pre] {
 		v.h += v.line_h
 		v.w = 0
@@ -130,40 +147,50 @@ fn (mut v VlangModules) show_content(b Balise, w_o int, width int, cfg Text, in_
 	} else if b.check_is(.code, '', '') {
 		code = true
 		v.max_w = v.w
-		app.ctx.draw_rect_filled(offset + v.w, v.h, b.codebox_w, b.codebox_h, gg.Color{45, 55, 72, 255})
+		// app.ctx.draw_rect_filled(offset + v.w, v.h, b.codebox_w, b.codebox_h, gg.Color{45, 55, 72, 255})
 	}
-	if v.h < app.s_size.height {
-		for mut c in b.children {
-			match mut c {
-				Balise {
-					v.show_content(app, mut c, offset, width, text_cfg, code)
-				}
-				RawText {
-					if c.txt != linebreaks#[..c.txt.len] || in_code || code {
-						for n, t in c.split_txt {
-							if v.h >= 0 {
-								if v.w >= 0 && v.w + t.len * text_cfg.size / 2 < width {
-									app.ctx.draw_text(v.w + offset, v.h, t, text_cfg)
-									v.w += (t.len) * text_cfg.size / 2
-									if v.w > v.max_w {
-										v.max_w = v.w
-									}
-								} else {
-									mut i := (width - v.w) / (text_cfg.size / 2)
-									for i != -1 && t[i] != ` ` {
-										i -= 1
-									}
-									i += 1
-									app.ctx.draw_text(v.w + offset, v.h, t[..i], text_cfg)
-									v.h += v.line_h
-									app.ctx.draw_text(offset, v.h, t[i..], text_cfg)
-									v.w = t[i..].len * text_cfg.size / 2
+	for c in b.children {
+		match c {
+			Balise {
+				v.process_content(c, width, text, code)
+			}
+			RawText {
+				if c.txt != linebreaks#[..c.txt.len] || in_code || code {
+					for n, t in c.split_txt {
+						if v.w + t.len * text.size / 2 < width {
+							text.t = t
+							text.h = v.h
+							text.w = v.w
+							v.content << text
+							v.w += (t.len) * text.size / 2
+							if v.w > v.max_w {
+								v.max_w = v.w
+							}
+						} else {
+							mut txt := t
+							for !(v.w + txt.len * text.size / 2 < width) {
+								mut i := (width - v.w) / (text.size / 2)
+								for i != -1 && txt[i] != ` ` {
+									i -= 1
 								}
-							}
-							if n < c.split_txt.len - 1 && c.split_txt.len > 1 {
-								v.h += v.line_h
+								i += 1
+								text.h = v.h
+								text.w = v.w
+								text.t = txt[..i]
+								v.content << text
 								v.w = 0
+								v.h += v.line_h
+								txt = txt[i..]
 							}
+							text.t = txt
+							text.h = v.h
+							text.w = v.w
+							v.content << text
+							v.w = txt.len * text.size / 2
+						}
+						if n < c.split_txt.len - 1 && c.split_txt.len > 1 {
+							v.h += v.line_h
+							v.w = 0
 						}
 					}
 				}
@@ -184,7 +211,7 @@ fn (mut v VlangModules) show_content(b Balise, w_o int, width int, cfg Text, in_
 	} else if b.check_is(.section, 'doc-node', '') {
 		v.h += v.line_h
 	} else if b.check_is(.code, '', '') {
-		b.codebox_h = v.h - base_h + v.line_h
-		b.codebox_w = v.max_w - base_w
+		// b.codebox_h = v.h - base_h + v.line_h
+		// b.codebox_w = v.max_w - base_w
 	}
 }
