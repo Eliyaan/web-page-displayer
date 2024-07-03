@@ -22,18 +22,18 @@ mut:
 
 struct Text {
 mut:
-	t         string
-	h int
-	w int
-	size      u8
-	color     gg.Color
+	t     string
+	h     int
+	w     int
+	size  u8
+	color gg.Color
 }
 
 fn (mut r VlangModules) init() {
 	content := r.tree[0].get(.div, 'doc-content', '') or { panic('did not find elem in page') }
 	// r.show_content(app,  content, 1)
 	modules := r.tree[0].get(.nav, 'content hidden', '') or { panic('did not find elem in page') }
-	r.process_modules(modules, Text{ size: u8(r.text_cfg.size), color: gx.white })
+	r.process_modules(modules, Text{ size: u8(r.text_cfg.size), color: gx.white }, false)
 	r.tree = []
 }
 
@@ -51,8 +51,8 @@ fn (mut r VlangModules) render(mut app App) {
 fn (mut v VlangModules) show_modules(app App, offset int) {
 	for t in v.modules {
 		h := t.h - app.scroll
-		if h >= 0 {	
-			app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{color:t.color, size: t.size})
+		if h >= 0 {
+			app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
 			if h > app.s_size.height {
 				break
 			}
@@ -60,36 +60,36 @@ fn (mut v VlangModules) show_modules(app App, offset int) {
 	}
 }
 
-fn (mut v VlangModules) process_modules(b Balise, cfg Text) {
+fn (mut v VlangModules) process_modules(b Balise, cfg Text, w_o bool) {
 	mut text := Text{
 		h: v.h
 		size: cfg.size
 		color: gg.Color{255, 255, 255, 255}
 	}
-	v.line_h = (text.size * 6) / 5
-	if b.@type == .li {
-		v.modules << text
-		if !b.check_is(.li, 'open', '') {
-			text.w = 20
-		}
+	w_offset := (b.@type == .li && !b.check_is(.li, 'open', '')) || w_o
+	if w_o {
+		text.w = 20
 	}
 	for c in b.children {
 		match c {
 			Balise {
-				v.process_modules(c, text)
+				v.process_modules(c, text, w_offset)
 			}
 			RawText {
-				if c.txt != linebreaks#[..c.txt.len] {
-				text.t = c.txt
-				v.modules << text
+				for t in c.split_txt {
+					if t != '' {
+						text.t = t
+						v.modules << text
+						v.line_h = (text.size * 6) / 5
+						v.h += v.line_h
+					}
 				}
 			}
 		}
 	}
-	v.h += v.line_h
 }
 
-fn (mut v VlangModules) show_content(app App, mut b Balise, offset int, width int, cfg gx.TextCfg, in_code bool) {
+fn (mut v VlangModules) show_content(b Balise, w_o int, width int, cfg Text, in_code bool) {
 	mut code := in_code
 	size := match true {
 		b.check_is(.h1, '', '') { 26 }
@@ -98,7 +98,7 @@ fn (mut v VlangModules) show_content(app App, mut b Balise, offset int, width in
 	}
 	base_h := v.h
 	base_w := v.w
-	text_cfg := gx.TextCfg{
+	text := Text{
 		size: size
 		color: match true {
 			b.check_is(.span, 'token symbol', '') { gg.Color{237, 100, 166, 255} }
