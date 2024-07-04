@@ -12,12 +12,21 @@ mut:
 		size: 18
 		color: gg.Color{255, 255, 255, 255}
 	}
-	h       int
-	w       int
-	max_w   int
-	line_h  int
-	content []Text
-	modules []Text
+	h          int
+	w          int
+	max_w      int
+	line_h     int
+	content    []Text
+	code_boxes []Box
+	modules    []Text
+}
+
+struct Box {
+mut:
+	x int
+	y int
+	h int
+	w int
 }
 
 struct Text {
@@ -26,7 +35,7 @@ mut:
 	h     int
 	w     int
 	size  u8
-	color gg.Color
+	color gg.Color // replace that with an index to avoid useless redundancy?
 }
 
 fn (mut r VlangModules) init() {
@@ -49,14 +58,14 @@ fn (mut r VlangModules) render(mut app App) {
 	app.ctx.draw_rect_filled(300, 0, app.s_size.width, app.s_size.height, gg.Color{26, 32, 44, 255})
 	app.ctx.draw_rect_filled(0, 0, 300, app.s_size.height, gg.Color{45, 55, 72, 255})
 	r.h = -app.scroll
-	r.show_modules(app, 15)
 	r.show_content(app, 330)
+	r.show_modules(app, 15)
 }
 
 fn (v VlangModules) show_modules(app App, offset int) {
 	for t in v.modules {
 		h := t.h - app.scroll
-		if h - t.size >= 0 {
+		if h + t.size >= 0 {
 			app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
 			if h > app.s_size.height {
 				break
@@ -66,9 +75,15 @@ fn (v VlangModules) show_modules(app App, offset int) {
 }
 
 fn (v VlangModules) show_content(app App, offset int) {
+	for b in v.code_boxes {
+		y := b.y - app.scroll
+		if y + b.h > 0 && y < app.s_size.height {
+			app.ctx.draw_rect_filled(b.x + offset, y, b.w, b.h, gg.Color{45, 55, 72, 255})
+		}
+	}
 	for t in v.content {
 		h := t.h - app.scroll
-		if h - t.size >= 0 {
+		if h + t.size >= 0 {
 			app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
 			if h > app.s_size.height {
 				break
@@ -108,8 +123,10 @@ fn (mut v VlangModules) process_modules(b Balise, cfg Text, w_o bool) {
 
 fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code bool) {
 	mut code := in_code
-	// base_h := v.h
-	// base_w := v.w
+	mut box := Box{
+		x: v.w
+		y: v.h
+	}
 	size := match true {
 		b.check_is(.h1, '', '') { 26 }
 		b.check_is(.h2, '', '') { 22 }
@@ -147,7 +164,6 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 	} else if b.check_is(.code, '', '') {
 		code = true
 		v.max_w = v.w
-		// app.ctx.draw_rect_filled(offset + v.w, v.h, b.codebox_w, b.codebox_h, gg.Color{45, 55, 72, 255})
 	}
 	for c in b.children {
 		match c {
@@ -182,11 +198,18 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 								v.h += v.line_h
 								txt = txt[i..]
 							}
+							box.x = v.w
+							box.y = v.h
 							text.t = txt
 							text.h = v.h
 							text.w = v.w
 							v.content << text
 							v.w = txt.len * text.size / 2
+							if in_code {
+								v.max_w = width
+							} else {
+								v.max_w = v.w
+							}
 						}
 						if n < c.split_txt.len - 1 && c.split_txt.len > 1 {
 							v.h += v.line_h
@@ -211,7 +234,8 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 	} else if b.check_is(.section, 'doc-node', '') {
 		v.h += v.line_h
 	} else if b.check_is(.code, '', '') {
-		// b.codebox_h = v.h - base_h + v.line_h
-		// b.codebox_w = v.max_w - base_w
+		box.h = v.h - box.y + v.line_h
+		box.w = v.max_w - box.x
+		v.code_boxes << box
 	}
 }
