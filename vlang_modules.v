@@ -1,5 +1,10 @@
 /*
 This file handles modules.vlang.io
+
+TODO:
+tab problem in structs
+click detection / jump / other page
+adapt with screen size
 */
 import gg
 import gx
@@ -17,7 +22,7 @@ mut:
 	max_w      int
 	line_h     int
 	content    []Text
-	toc []Text
+	toc        []Text
 	code_boxes []Box
 	modules    []Text
 }
@@ -92,10 +97,12 @@ fn (v VlangModules) show_modules(app App, offset int) {
 }
 
 fn (v VlangModules) show_content(app App, offset int) {
+	rect_margin := 2
 	for b in v.code_boxes {
-		y := b.y - app.scroll
+		y := b.y - app.scroll - rect_margin
 		if y + b.h > 0 && y < app.s_size.height {
-			app.ctx.draw_rect_filled(b.x + offset, y, b.w, b.h, gg.Color{45, 55, 72, 255})
+			app.ctx.draw_rounded_rect_filled(b.x + offset - rect_margin, y, b.w + rect_margin * 2,
+				b.h + rect_margin * 2, 5, gg.Color{45, 55, 72, 255})
 		}
 	}
 	for t in v.content {
@@ -127,7 +134,6 @@ fn (mut v VlangModules) process_toc(b Balise, cfg Text, w_o bool) {
 			RawText {
 				for t in c.split_txt {
 					if t.trim(' ') != '' {
-						println('-${t}-')
 						text.t = t
 						v.toc << text
 						v.line_h = (text.size * 6) / 5
