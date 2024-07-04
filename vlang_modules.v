@@ -5,9 +5,15 @@ TODO:
 tab problem in structs
 click detection / jump / other page
 adapt with screen size
+fix linebreak multiple
 */
 import gg
 import gx
+
+const toc_w = 360
+const modules_w = 200
+const space_w = 30
+const rect_margin = 2
 
 struct VlangModules {
 mut:
@@ -44,32 +50,34 @@ mut:
 	color gg.Color // replace that with an index to avoid useless redundancy?
 }
 
-fn (mut r VlangModules) init() {
+fn (mut r VlangModules) init(url string, width int) {
+	r.tree = get_tree(url)
 	base_txt := Text{
 		size: u8(r.text_cfg.size)
 		color: gx.white
 	}
 	content := r.tree[0].get(.div, 'doc-content', '') or { panic('did not find elem in page') }
-	r.process_content(content, 700, base_txt, false)
 	r.h = 0
+	r.w = 0
+	r.process_content(content, width - (space_w * 2 + toc_w + modules_w), base_txt, false)
+	r.h = 0
+	r.w = 0
 	modules := r.tree[0].get(.nav, 'content hidden', '') or { panic('did not find elem in page') }
 	r.process_modules(modules, base_txt, false)
 	r.h = 0
+	r.w = 0
 	toc := r.tree[0].get(.div, 'doc-toc', '') or { panic('did not find elem in page') }
 	r.process_toc(toc, base_txt, false)
 	r.tree = []
 }
 
 fn (mut r VlangModules) render(mut app App) {
-	if gg.window_size() != app.s_size {
-		app.s_size = gg.window_size()
-	}
-	app.ctx.draw_rect_filled(300, 0, app.s_size.width, app.s_size.height, gg.Color{26, 32, 44, 255})
-	app.ctx.draw_rect_filled(0, 0, 300, app.s_size.height, gg.Color{45, 55, 72, 255})
+	app.ctx.draw_rect_filled(0, 0, modules_w, app.s_size.height, gg.Color{45, 55, 72, 255})
 	r.h = -app.scroll
 	r.show_modules(app, 15)
-	r.show_content(app, 330)
-	r.show_toc(app, 1060)
+	app.ctx.draw_rect_filled(modules_w, 0, app.s_size.width, app.s_size.height, gg.Color{26, 32, 44, 255})
+	r.show_content(app, modules_w + space_w)
+	r.show_toc(app, app.s_size.width - toc_w)
 }
 
 fn (v VlangModules) show_toc(app App, offset int) {
@@ -97,12 +105,11 @@ fn (v VlangModules) show_modules(app App, offset int) {
 }
 
 fn (v VlangModules) show_content(app App, offset int) {
-	rect_margin := 2
 	for b in v.code_boxes {
-		y := b.y - app.scroll - rect_margin
+		y := b.y - app.scroll - rect_margin / 2
 		if y + b.h > 0 && y < app.s_size.height {
 			app.ctx.draw_rounded_rect_filled(b.x + offset - rect_margin, y, b.w + rect_margin * 2,
-				b.h + rect_margin * 2, 5, gg.Color{45, 55, 72, 255})
+				b.h + rect_margin, 5, gg.Color{45, 55, 72, 255})
 		}
 	}
 	for t in v.content {
@@ -251,17 +258,17 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 								v.h += v.line_h
 								txt = txt[i..]
 							}
-							box.x = v.w
-							box.y = v.h
 							text.t = txt
 							text.h = v.h
 							text.w = v.w
 							v.content << text
 							v.w = txt.len * text.size / 2
-							if in_code {
+							if !(txt == t) {
 								v.max_w = width
 							} else {
 								v.max_w = v.w
+								box.x = v.w
+								box.y = v.h
 							}
 						}
 						if n < c.split_txt.len - 1 && c.split_txt.len > 1 {
