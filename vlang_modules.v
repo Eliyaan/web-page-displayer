@@ -17,6 +17,7 @@ mut:
 	max_w      int
 	line_h     int
 	content    []Text
+	toc []Text
 	code_boxes []Box
 	modules    []Text
 }
@@ -44,10 +45,13 @@ fn (mut r VlangModules) init() {
 		color: gx.white
 	}
 	content := r.tree[0].get(.div, 'doc-content', '') or { panic('did not find elem in page') }
-	r.process_content(content, 1000, base_txt, false)
+	r.process_content(content, 700, base_txt, false)
 	r.h = 0
 	modules := r.tree[0].get(.nav, 'content hidden', '') or { panic('did not find elem in page') }
 	r.process_modules(modules, base_txt, false)
+	r.h = 0
+	toc := r.tree[0].get(.div, 'doc-toc', '') or { panic('did not find elem in page') }
+	r.process_toc(toc, base_txt, false)
 	r.tree = []
 }
 
@@ -58,8 +62,21 @@ fn (mut r VlangModules) render(mut app App) {
 	app.ctx.draw_rect_filled(300, 0, app.s_size.width, app.s_size.height, gg.Color{26, 32, 44, 255})
 	app.ctx.draw_rect_filled(0, 0, 300, app.s_size.height, gg.Color{45, 55, 72, 255})
 	r.h = -app.scroll
-	r.show_content(app, 330)
 	r.show_modules(app, 15)
+	r.show_content(app, 330)
+	r.show_toc(app, 1060)
+}
+
+fn (v VlangModules) show_toc(app App, offset int) {
+	for t in v.toc {
+		h := t.h - app.scroll
+		if h + t.size >= 0 {
+			app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
+			if h > app.s_size.height {
+				break
+			}
+		}
+	}
 }
 
 fn (v VlangModules) show_modules(app App, offset int) {
@@ -87,6 +104,36 @@ fn (v VlangModules) show_content(app App, offset int) {
 			app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
 			if h > app.s_size.height {
 				break
+			}
+		}
+	}
+}
+
+fn (mut v VlangModules) process_toc(b Balise, cfg Text, w_o bool) {
+	mut text := Text{
+		h: v.h
+		size: cfg.size
+		color: gg.Color{144, 205, 244, 255}
+	}
+	w_offset := (b.@type == .li && !b.check_is(.li, 'open', '')) || w_o
+	if w_o {
+		text.w = 20
+	}
+	for c in b.children {
+		match c {
+			Balise {
+				v.process_toc(c, text, w_offset)
+			}
+			RawText {
+				for t in c.split_txt {
+					if t.trim(' ') != '' {
+						println('-${t}-')
+						text.t = t
+						v.toc << text
+						v.line_h = (text.size * 6) / 5
+						v.h += v.line_h
+					}
+				}
 			}
 		}
 	}
