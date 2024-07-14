@@ -4,8 +4,8 @@ This file handles modules.vlang.io
 TODO:
 tab problem in structs (maybe a problem to solve in the parser)
 click detection / jump to / other page
-fix multiple linebreaks where not needed shortly after a needed one
 */
+
 import gg
 import gx
 
@@ -236,6 +236,7 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 			RawText {
 				if c.txt != linebreaks#[..c.txt.len] || in_code || code {
 					for n, t in c.split_txt {
+							if t != "" {
 						if v.w + t.len * text.size / 2 < width {
 							text.t = t
 							text.h = v.h
@@ -247,7 +248,7 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 							}
 						} else {
 							mut txt := t
-							for !(v.w + txt.len * (text.size / 2) < width) {
+							for v.w + txt.len * (text.size / 2) > width {
 								mut i := (width - v.w) / (text.size / 2)
 								for i != -1 && txt[i] != ` ` {
 									i -= 1
@@ -255,12 +256,16 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 								i += 1
 								text.h = v.h
 								text.w = v.w
-								text.t = txt[..i]
-								v.content << text
+								text.t = txt[..i] // txt is bigger than i
 								v.w = 0
 								v.h += v.line_h
+								if text.t != "" { // could happen if whole word/text of txt is linebreaked
+								v.content << text
+								}
 								txt = txt[i..]
 							}
+							// the last cut part
+							if txt != "" {
 							text.t = txt
 							text.h = v.h
 							text.w = v.w
@@ -273,7 +278,9 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 							} else {
 								v.max_w = width
 							}
+							}
 						}
+							}
 						if n < c.split_txt.len - 1 && c.split_txt.len > 1 {
 							v.h += v.line_h
 							v.w = 0
