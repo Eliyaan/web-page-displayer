@@ -96,23 +96,22 @@ interface Render {
 mut:
 	tree []Element
 	render(mut app App)
-	init()
+	init(url string, width int)
 }
 
 struct App {
 mut:
-	ctx    &gg.Context = unsafe { nil }
-	s_size gg.Size
-	render Render
-	scroll int
+	ctx        &gg.Context = unsafe { nil }
+	s_size     gg.Size
+	render     Render
+	free_frame int = 2
+	scroll     int
 }
 
 fn main() {
 	// println(get_tree('https://docs.vlang.io/introduction.html')) does not work yet
 	mut app := App{
-		render: VlangModules{
-			tree: get_tree('https://modules.vlang.io/gg.html')
-		}
+		render: VlangModules{}
 	}
 	app.ctx = gg.new_context(
 		create_window: true
@@ -120,9 +119,7 @@ fn main() {
 		frame_fn: frame
 		event_fn: event
 		font_path: os.resource_abs_path('fonts/SourceCodePro-Medium.ttf')
-		ui_mode: true
 	)
-	app.render.init()
 	app.ctx.run()
 }
 
@@ -139,9 +136,20 @@ fn event(e &gg.Event, mut app App) {
 }
 
 fn frame(mut app App) {
-	app.ctx.begin()
-	app.render.render(mut app)
-	app.ctx.end()
+	if app.free_frame == 0 {
+		if gg.window_size() != app.s_size {
+			app.s_size = gg.window_size()
+			app.render.init('https://modules.vlang.io/gg.html', app.s_size.width)
+		}
+		app.ctx.begin()
+		app.render.render(mut app)
+		app.ctx.end()
+	} else {
+		app.free_frame -= 1
+		if app.free_frame == 0 {
+			app.ctx.ui_mode = true
+		}
+	}
 }
 
 // Not used

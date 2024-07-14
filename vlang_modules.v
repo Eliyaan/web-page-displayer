@@ -2,10 +2,9 @@
 This file handles modules.vlang.io
 
 TODO:
-tab problem in structs
-click detection / jump / other page
-adapt with screen size
-fix linebreak multiple
+tab problem in structs (maybe a problem to solve in the parser)
+click detection / jump to / other page
+fix multiple linebreaks where not needed shortly after a needed one
 */
 import gg
 import gx
@@ -51,6 +50,10 @@ mut:
 }
 
 fn (mut r VlangModules) init(url string, width int) {
+	r.code_boxes = []
+	r.toc = []
+	r.content = []
+	r.modules = []
 	r.tree = get_tree(url)
 	base_txt := Text{
 		size: u8(r.text_cfg.size)
@@ -244,7 +247,7 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 							}
 						} else {
 							mut txt := t
-							for !(v.w + txt.len * text.size / 2 < width) {
+							for !(v.w + txt.len * (text.size / 2) < width) {
 								mut i := (width - v.w) / (text.size / 2)
 								for i != -1 && txt[i] != ` ` {
 									i -= 1
@@ -263,12 +266,12 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 							text.w = v.w
 							v.content << text
 							v.w = txt.len * text.size / 2
-							if !(txt == t) {
-								v.max_w = width
-							} else {
+							if txt == t {
 								v.max_w = v.w
 								box.x = v.w
 								box.y = v.h
+							} else {
+								v.max_w = width
 							}
 						}
 						if n < c.split_txt.len - 1 && c.split_txt.len > 1 {
