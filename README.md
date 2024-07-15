@@ -6,7 +6,7 @@ it aims to be lightweight, fast and useful. The goal to create renderers for the
 The browsers that I tried are always very ram/cpu heavy and I dont what that. Making a browser is a lot of work and it would not allow for optimizing the webpages that are not well made performance wise. So this is where the idea came from, a page renderer that supports only the pages that we want and in the way we want.
 
 Lightweight & fast:
-no heavy css/js processing
-easy offline cache // TODO
-it can keep only what is needed 
+- no heavy css/js processing
+- easy offline cache // TODO
+- it can keep only what is needed 
 
