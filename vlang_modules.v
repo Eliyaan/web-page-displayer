@@ -3,10 +3,8 @@ This file handles modules.vlang.io
 
 TODO:
 tab problem in structs (maybe a problem to solve in the parser)
-click detection / jump to / other page
-code box not right width
-actual module indented but should be highlighted (because of id maybe)
 store actual url to be able to copy it
+box gg ctx draw circle line
 invalid mem access on builtin and others
 */
 import gg
@@ -300,7 +298,7 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 		v.h += v.line_h
 	} else if b.check_is(.code, '', '') {
 		code = true
-		v.max_w = v.w
+		v.max_w = -1
 	}
 	for c in b.children {
 		match c {
@@ -312,6 +310,9 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 					for n, t in c.split_txt {
 						if t != '' {
 							if v.w + t.len * text.size / 2 < width {
+								if (in_code || code) && v.max_w == -1 {
+									v.max_w = v.w
+								}
 								text.t = t
 								text.h = v.h
 								text.w = v.w
@@ -335,19 +336,25 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 									v.h += v.line_h
 									if text.t != '' { // could happen if whole word/text of txt is linebreaked
 										v.content << text
+										v.max_w = txt.len * text.size / 2
 									}
 									txt = txt[i..]
 								}
 								// the last cut part
 								if txt != '' {
+									if (in_code || code) && v.max_w == -1 {
+										v.max_w = v.w
+									}
 									text.t = txt
 									text.h = v.h
 									text.w = v.w
 									v.content << text
 									v.w = txt.len * text.size / 2
 									if txt == t {
-										v.max_w = v.w
-										box.x = v.w
+										if v.w > v.max_w {
+											v.max_w = v.w
+										}
+										box.x = 0
 										box.y = v.h
 									} else {
 										v.max_w = width

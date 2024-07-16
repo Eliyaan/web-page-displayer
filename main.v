@@ -132,7 +132,7 @@ fn event(e &gg.Event, mut app App) {
 	app.click_y = int(e.mouse_y)
 	match e.typ {
 		.mouse_scroll {
-			app.scroll -= int(e.scroll_y) * 20
+			app.scroll -= int(e.scroll_y) * 30
 			if app.scroll < 0 {
 				app.scroll = 0
 			}
