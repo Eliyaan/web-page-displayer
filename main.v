@@ -368,6 +368,7 @@ fn (mut p Parse) process_open_tag() {
 				mut last := p.stack[p.stack.len - 1]
 				if mut last is Balise { // sure
 					mut child := &last.children[last.children.len - 1]
+					println(child)
 					if mut child is RawText {
 						child.txt += '<' // to not lose the <
 					} else {
