@@ -5,6 +5,7 @@ TODO:
 tab problem in structs (maybe a problem to solve in the parser)
 click detection / jump to / other page
 code box not right width
+actual module indented but should be highlighted (because of id maybe)
 store actual url to be able to copy it
 */
 import gg
@@ -31,6 +32,8 @@ mut:
 	toc        []Text
 	code_boxes []Box
 	modules    []Text
+	id_jumps   map[string]int
+	render     bool // if init in middle of rendering happens
 }
 
 struct Box {
@@ -47,10 +50,12 @@ mut:
 	h     int
 	w     int
 	size  u8
+	href  string
 	color gg.Color // replace that with an index to avoid useless redundancy?
 }
 
 fn (mut r VlangModules) init(url string, width int) {
+	r.id_jumps = map[string]int{}
 	r.code_boxes = []
 	r.toc = []
 	r.content = []
@@ -76,62 +81,104 @@ fn (mut r VlangModules) init(url string, width int) {
 }
 
 fn (mut r VlangModules) render(mut app App) {
+	r.render = true
 	app.ctx.draw_rect_filled(0, 0, modules_w, app.s_size.height, gg.Color{45, 55, 72, 255})
 	r.h = -app.scroll
-	r.show_modules(app, 15)
+	r.show_modules(mut app, 15)
 	app.ctx.draw_rect_filled(modules_w, 0, app.s_size.width, app.s_size.height, gg.Color{26, 32, 44, 255})
 	r.show_content(app, modules_w + space_w)
 	r.show_toc(mut app, app.s_size.width - toc_w)
+	app.ctx.draw_circle_filled(app.s_size.width - 15, app.s_size.height - 15, 10, gg.Color{100, 100, 100, 255})
+	if app.clicked {
+		x := app.click_x - (app.s_size.width - 15)
+		y := app.click_y - (app.s_size.height - 15)
+		if x * x + y * y < 100 {
+			app.scroll = 0
+		}
+	}
 }
 
 fn (mut v VlangModules) show_toc(mut app App, offset int) {
-	for t in v.toc {
-		h := t.h - app.scroll
-		if h + t.size >= 0 {
-			if app.click_y >= h && app.click_y <= h + t.size {
-				if app.click_x >= t.w + offset && app.click_x <= t.w + offset + t.t.len * t.size / 2 {
-					app.ctx.draw_rect_filled(t.w + offset, h + t.size - 1, t.t.len * t.size / 2,
-						1, t.color)
-					if app.clicked {
-						println('clicked toc')
-						app.clicked = false
+	if v.render {
+		for t in v.toc {
+			h := t.h - app.scroll
+			if h + t.size >= 0 {
+				if app.click_y >= h && app.click_y <= h + t.size {
+					if app.click_x >= t.w + offset
+						&& app.click_x <= t.w + offset + t.t.len * t.size / 2 {
+						app.ctx.draw_rect_filled(t.w + offset, h + t.size - 1, t.t.len * t.size / 2,
+							1, t.color)
+						if app.clicked {
+							if t.href.len > 0 && t.href[0] == `#` {
+								app.scroll = v.id_jumps[t.href[1..]]
+							} else {
+								println("clickable not starting with '#': `${t.href}`")
+							}
+							app.clicked = false
+						}
 					}
 				}
-			}
-			app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
-			if h > app.s_size.height {
-				break
+				app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
+				if h > app.s_size.height {
+					break
+				}
 			}
 		}
 	}
 }
 
-fn (v VlangModules) show_modules(app App, offset int) {
-	for t in v.modules {
-		h := t.h - app.scroll
-		if h + t.size >= 0 {
-			app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
-			if h > app.s_size.height {
-				break
+fn (mut v VlangModules) show_modules(mut app App, offset int) {
+	if v.render {
+		for t in v.modules {
+			h := t.h - app.scroll
+			if h + t.size >= 0 {
+				if app.click_y >= h && app.click_y <= h + t.size {
+					if app.click_x >= t.w + offset
+						&& app.click_x <= t.w + offset + t.t.len * t.size / 2 {
+						app.ctx.draw_rect_filled(t.w + offset, h + t.size - 1, t.t.len * t.size / 2,
+							1, t.color)
+						if app.clicked {
+							app.clicked = false
+							mut href := t.href
+							if href.len >= 2 && href[0..2] == './' {
+								href = 'https://modules.vlang.io/${href[2..]}'
+							}
+							if href.len >= 4 && href[0..4] == 'http' {
+								app.scroll = 0
+								v.init(href, app.s_size.width)
+								v.render = false
+								break
+							} else {
+								println("clickable not starting with 'http': `${href}`")
+							}
+						}
+					}
+				}
+				app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
+				if h > app.s_size.height {
+					break
+				}
 			}
 		}
 	}
 }
 
 fn (v VlangModules) show_content(app App, offset int) {
-	for b in v.code_boxes {
-		y := b.y - app.scroll - rect_margin / 2
-		if y + b.h > 0 && y < app.s_size.height {
-			app.ctx.draw_rounded_rect_filled(b.x + offset - rect_margin, y, b.w + rect_margin * 2,
-				b.h + rect_margin, 5, gg.Color{45, 55, 72, 255})
+	if v.render {
+		for b in v.code_boxes {
+			y := b.y - app.scroll - rect_margin / 2
+			if y + b.h > 0 && y < app.s_size.height {
+				app.ctx.draw_rounded_rect_filled(b.x + offset - rect_margin, y, b.w +
+					rect_margin * 2, b.h + rect_margin, 5, gg.Color{45, 55, 72, 255})
+			}
 		}
-	}
-	for t in v.content {
-		h := t.h - app.scroll
-		if h + t.size >= 0 {
-			app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
-			if h > app.s_size.height {
-				break
+		for t in v.content {
+			h := t.h - app.scroll
+			if h + t.size >= 0 {
+				app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
+				if h > app.s_size.height {
+					break
+				}
 			}
 		}
 	}
@@ -142,6 +189,7 @@ fn (mut v VlangModules) process_toc(b Balise, cfg Text, w_o bool) {
 		h: v.h
 		size: cfg.size
 		color: gg.Color{144, 205, 244, 255}
+		href: b.href + cfg.href
 	}
 	w_offset := (b.@type == .li && !b.check_is(.li, 'open', '')) || w_o
 	if w_o {
@@ -171,6 +219,7 @@ fn (mut v VlangModules) process_modules(b Balise, cfg Text, w_o bool) {
 		h: v.h
 		size: cfg.size
 		color: gg.Color{255, 255, 255, 255}
+		href: b.href + cfg.href
 	}
 	w_offset := (b.@type == .li && !b.check_is(.li, 'open', '')) || w_o
 	if w_o {
@@ -197,6 +246,9 @@ fn (mut v VlangModules) process_modules(b Balise, cfg Text, w_o bool) {
 
 fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code bool) {
 	mut code := in_code
+	if b.id != '' {
+		v.id_jumps[b.id] = v.h
+	}
 	mut box := Box{
 		x: v.w
 		y: v.h
@@ -220,6 +272,7 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 			b.check_is(.span, 'token keyword', '') { gg.Color{99, 179, 237, 255} }
 			else { cfg.color }
 		}
+		href: b.href + cfg.href
 	}
 	v.line_h = (text.size * 6) / 5
 	if b.@type in [.p, .pre] {

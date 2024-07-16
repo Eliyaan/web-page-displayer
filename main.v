@@ -229,6 +229,7 @@ fn (e Element) raw_text() string {
 
 @[direct_array_access]
 fn get_tree(url string) []Element {
+	println('Getting ${url}')
 	res := http.get(url) or { panic('http get err: ${err}') }
 	mut p := Parse{
 		main_content: res.body
