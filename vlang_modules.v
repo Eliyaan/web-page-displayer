@@ -4,8 +4,9 @@ This file handles modules.vlang.io
 TODO:
 tab problem in structs (maybe a problem to solve in the parser)
 click detection / jump to / other page
+code box not right width
+store actual url to be able to copy it
 */
-
 import gg
 import gx
 
@@ -80,13 +81,23 @@ fn (mut r VlangModules) render(mut app App) {
 	r.show_modules(app, 15)
 	app.ctx.draw_rect_filled(modules_w, 0, app.s_size.width, app.s_size.height, gg.Color{26, 32, 44, 255})
 	r.show_content(app, modules_w + space_w)
-	r.show_toc(app, app.s_size.width - toc_w)
+	r.show_toc(mut app, app.s_size.width - toc_w)
 }
 
-fn (v VlangModules) show_toc(app App, offset int) {
+fn (mut v VlangModules) show_toc(mut app App, offset int) {
 	for t in v.toc {
 		h := t.h - app.scroll
 		if h + t.size >= 0 {
+			if app.click_y >= h && app.click_y <= h + t.size {
+				if app.click_x >= t.w + offset && app.click_x <= t.w + offset + t.t.len * t.size / 2 {
+					app.ctx.draw_rect_filled(t.w + offset, h + t.size - 1, t.t.len * t.size / 2,
+						1, t.color)
+					if app.clicked {
+						println('clicked toc')
+						app.clicked = false
+					}
+				}
+			}
 			app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
 			if h > app.s_size.height {
 				break
@@ -236,51 +247,51 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 			RawText {
 				if c.txt != linebreaks#[..c.txt.len] || in_code || code {
 					for n, t in c.split_txt {
-							if t != "" {
-						if v.w + t.len * text.size / 2 < width {
-							text.t = t
-							text.h = v.h
-							text.w = v.w
-							v.content << text
-							v.w += (t.len) * text.size / 2
-							if v.w > v.max_w {
-								v.max_w = v.w
-							}
-						} else {
-							mut txt := t
-							for v.w + txt.len * (text.size / 2) > width {
-								mut i := (width - v.w) / (text.size / 2)
-								for i != -1 && txt[i] != ` ` {
-									i -= 1
-								}
-								i += 1
+						if t != '' {
+							if v.w + t.len * text.size / 2 < width {
+								text.t = t
 								text.h = v.h
 								text.w = v.w
-								text.t = txt[..i] // txt is bigger than i
-								v.w = 0
-								v.h += v.line_h
-								if text.t != "" { // could happen if whole word/text of txt is linebreaked
 								v.content << text
+								v.w += (t.len) * text.size / 2
+								if v.w > v.max_w {
+									v.max_w = v.w
 								}
-								txt = txt[i..]
-							}
-							// the last cut part
-							if txt != "" {
-							text.t = txt
-							text.h = v.h
-							text.w = v.w
-							v.content << text
-							v.w = txt.len * text.size / 2
-							if txt == t {
-								v.max_w = v.w
-								box.x = v.w
-								box.y = v.h
 							} else {
-								v.max_w = width
-							}
+								mut txt := t
+								for v.w + txt.len * (text.size / 2) > width {
+									mut i := (width - v.w) / (text.size / 2)
+									for i != -1 && txt[i] != ` ` {
+										i -= 1
+									}
+									i += 1
+									text.h = v.h
+									text.w = v.w
+									text.t = txt[..i] // txt is bigger than i
+									v.w = 0
+									v.h += v.line_h
+									if text.t != '' { // could happen if whole word/text of txt is linebreaked
+										v.content << text
+									}
+									txt = txt[i..]
+								}
+								// the last cut part
+								if txt != '' {
+									text.t = txt
+									text.h = v.h
+									text.w = v.w
+									v.content << text
+									v.w = txt.len * text.size / 2
+									if txt == t {
+										v.max_w = v.w
+										box.x = v.w
+										box.y = v.h
+									} else {
+										v.max_w = width
+									}
+								}
 							}
 						}
-							}
 						if n < c.split_txt.len - 1 && c.split_txt.len > 1 {
 							v.h += v.line_h
 							v.w = 0

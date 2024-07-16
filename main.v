@@ -79,6 +79,7 @@ mut:
 	attr      string // inside the balise
 	class     string
 	id        string
+	href      string
 	children  []Element
 	codebox_h int
 	codebox_w int
@@ -106,6 +107,9 @@ mut:
 	render     Render
 	free_frame int = 2
 	scroll     int
+	click_x    int
+	click_y    int
+	clicked    bool
 }
 
 fn main() {
@@ -124,12 +128,17 @@ fn main() {
 }
 
 fn event(e &gg.Event, mut app App) {
+	app.click_x = int(e.mouse_x)
+	app.click_y = int(e.mouse_y)
 	match e.typ {
 		.mouse_scroll {
 			app.scroll -= int(e.scroll_y) * 20
 			if app.scroll < 0 {
 				app.scroll = 0
 			}
+		}
+		.mouse_up {
+			app.clicked = true
 		}
 		else {}
 	}
@@ -150,6 +159,7 @@ fn frame(mut app App) {
 			app.ctx.ui_mode = true
 		}
 	}
+	app.clicked = false
 }
 
 // Not used
@@ -299,9 +309,9 @@ fn (mut p Parse) close_tag() {
 	mut last := p.stack[p.stack.len - 1]
 	if mut last is Balise {
 		if i := last.attr.index('class=') {
-			start := i + 7
+			start := i + 7 // class="
 			mut end := start + 1
-			for c in last.attr[start + 1..] {
+			for c in last.attr[start + 1..] { // search the closing "
 				if c == `"` {
 					break
 				}
@@ -310,7 +320,7 @@ fn (mut p Parse) close_tag() {
 			last.class = last.attr[start..end]
 		}
 		if i := last.attr.index('id=') {
-			start := i + 7
+			start := i + 4 // id="
 			mut end := start + 1
 			for c in last.attr[start + 1..] {
 				if c == `"` {
@@ -319,6 +329,17 @@ fn (mut p Parse) close_tag() {
 				end += 1
 			}
 			last.id = last.attr[start..end]
+		}
+		if i := last.attr.index('href=') {
+			start := i + 6
+			mut end := start + 1
+			for c in last.attr[start + 1..] {
+				if c == `"` {
+					break
+				}
+				end += 1
+			}
+			last.href = last.attr[start..end]
 		}
 		last.attr = '' // free memory I guess
 		if last.@type in non_closing {
