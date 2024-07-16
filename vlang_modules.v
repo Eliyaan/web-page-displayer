@@ -7,6 +7,7 @@ click detection / jump to / other page
 code box not right width
 actual module indented but should be highlighted (because of id maybe)
 store actual url to be able to copy it
+invalid mem access on builtin and others
 */
 import gg
 import gx
@@ -218,13 +219,22 @@ fn (mut v VlangModules) process_modules(b Balise, cfg Text, w_o bool) {
 	mut text := Text{
 		h: v.h
 		size: cfg.size
-		color: gg.Color{255, 255, 255, 255}
+		color: cfg.color
 		href: b.href + cfg.href
 	}
-	w_offset := (b.@type == .li && !b.check_is(.li, 'open', '')) || w_o
+	is_li := b.@type == .li
+	is_open_active := b.check_is(.li, 'open active', '')
 	if w_o {
 		text.w = 20
 	}
+	if is_li {
+		if is_open_active || b.check_is(.li, 'active', '') {
+			text.color = gg.Color{200, 200, 255, 255}
+		} else {
+			text.color = gg.Color{255, 255, 255, 255}
+		}
+	}
+	w_offset := (is_li && !b.check_is(.li, 'open', '') && !is_open_active) || w_o
 	for c in b.children {
 		match c {
 			Balise {
