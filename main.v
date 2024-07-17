@@ -14,7 +14,7 @@ struct Parse {
 mut:
 	main_content string
 	parents      []Element
-	stack        []&Element
+	stack        []&Element // why not []&Balise?
 	in_balise    bool
 	nb           int
 }
@@ -113,7 +113,7 @@ mut:
 }
 
 fn main() {
-	// println(get_tree('https://docs.vlang.io/introduction.html')) does not work yet
+	// println(get_tree('https://docs.vlang.io/')) does not work yet
 	mut app := App{
 		render: VlangModules{}
 	}
@@ -366,16 +366,19 @@ fn (mut p Parse) process_open_tag() {
 				p.in_balise = false
 				// debug println("not name ${main_content[nb].ascii_str()}  name:${name}")
 				mut last := p.stack[p.stack.len - 1]
-				if mut last is Balise { // sure
+				if mut last is Balise { // sure, no RawText in the stack
+					empty := last.children.len == 0
+					if empty {
+						last.children << RawText{}
+					}
 					mut child := &last.children[last.children.len - 1]
-					println(child)
 					if mut child is RawText {
 						child.txt += '<' // to not lose the <
 					} else {
 						panic('handle not raw text ${@FILE_LINE}')
 					}
 				} else {
-					panic('handle not balise ${@FILE_LINE}')
+					panic('handle not balise ${last} ${@FILE_LINE}')
 				}
 				p.nb = old_nb - 1
 				return
@@ -418,8 +421,14 @@ fn (mut p Parse) process_open_tag() {
 			p.in_balise = false
 			p.nb -= 1
 			mut last := p.stack[p.stack.len - 1]
-			if mut last is RawText {
-				last.txt += '<' // to not lose the <			
+			if mut last is Balise {
+				mut child := &last.children[last.children.len - 1]
+				if mut child is RawText {
+					println('coucou')
+					child.txt += '<' // to not lose the <			
+				} else {
+					panic('handle not rawtext ${@FILE_LINE}')
+				}
 			} else {
 				panic('handle not rawtext ${@FILE_LINE}')
 			}
