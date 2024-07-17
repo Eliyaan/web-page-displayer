@@ -177,8 +177,8 @@ fn (v VlangModules) show_content(app App, offset int) {
 		for b in v.code_boxes {
 			y := b.y - app.scroll - rect_margin / 2
 			if y + b.h > 0 && y < app.s_size.height {
-				app.ctx.draw_rounded_rect_filled(b.x + offset - rect_margin, y, b.w +
-					rect_margin * 2, b.h + rect_margin, 5, gg.Color{45, 55, 72, 255})
+				app.ctx.draw_rect_filled(b.x + offset - rect_margin, y, b.w + rect_margin * 2,
+					b.h + rect_margin, gg.Color{45, 55, 72, 255})
 			}
 		}
 		for t in v.content {
