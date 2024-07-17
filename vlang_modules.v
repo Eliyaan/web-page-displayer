@@ -5,7 +5,10 @@ TODO:
 tab problem in structs (maybe a problem to solve in the parser)
 store actual url to be able to copy it && init with good url when init of change size
 box gg ctx draw circle line
-invalid mem access on builtin and others
+
+broken pages:
+builtin (never shows up)
+datatypes (tree does not get returned)
 */
 import gg
 import gx

@@ -50,6 +50,7 @@ enum Variant {
 	header
 	section
 	li
+	ol
 	ul
 	span
 	g
@@ -411,7 +412,8 @@ fn (mut p Parse) process_open_tag() {
 					}
 				}
 			} else { // does not handle all the bad cases
-				println('${err} : ${name}. The parser wont work as intended.')
+				println(p.main_content[p.nb - 10..p.nb + 10])
+				println('${err} : `${name}` The parser wont work as intended.')
 				for p.main_content[p.nb] != `>` {
 					p.nb += 1
 				}
@@ -424,7 +426,6 @@ fn (mut p Parse) process_open_tag() {
 			if mut last is Balise {
 				mut child := &last.children[last.children.len - 1]
 				if mut child is RawText {
-					println('coucou')
 					child.txt += '<' // to not lose the <			
 				} else {
 					panic('handle not rawtext ${@FILE_LINE}')
