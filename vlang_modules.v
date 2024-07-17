@@ -20,7 +20,7 @@ const rect_margin = 2
 
 struct VlangModules {
 mut:
-	tree     []Element
+	tree     Element
 	readme   []string
 	text_cfg gx.TextCfg = gx.TextCfg{
 		size: 18
@@ -62,24 +62,31 @@ fn (mut r VlangModules) init(url string, width int) {
 	r.toc = []
 	r.content = []
 	r.modules = []
-	r.tree = get_tree(url)
+	r.tree = get_tree(url)[0]
 	base_txt := Text{
 		size: u8(r.text_cfg.size)
 		color: gx.white
 	}
-	content := r.tree[0].get(.div, 'doc-content', '') or { panic('did not find elem in page') }
+	println("Searching doc-content")
+	content := r.tree.get(.div, 'doc-content', '') or { panic('did not find elem in page') }
 	r.h = 0
 	r.w = 0
+	println("Processing content")
 	r.process_content(content, width - (space_w * 2 + toc_w + modules_w), base_txt, false)
 	r.h = 0
 	r.w = 0
-	modules := r.tree[0].get(.nav, 'content hidden', '') or { panic('did not find elem in page') }
+	println("Searching content hidden")
+	modules := r.tree.get(.nav, 'content hidden', '') or { panic('did not find elem in page') }
+	println("Processing modules")
 	r.process_modules(modules, base_txt, false)
 	r.h = 0
 	r.w = 0
-	toc := r.tree[0].get(.div, 'doc-toc', '') or { panic('did not find elem in page') }
+	println("Searching doc-toc")
+	toc := r.tree.get(.div, 'doc-toc', '') or { panic('did not find elem in page') }
+	println("Processing table of contents")
 	r.process_toc(toc, base_txt, false)
-	r.tree = []
+	r.tree = RawText{}
+	println("Finished processing ${url}")
 }
 
 fn (mut r VlangModules) render(mut app App) {

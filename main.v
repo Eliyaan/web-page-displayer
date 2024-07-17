@@ -96,7 +96,6 @@ type Element = Balise | RawText
 
 interface Render {
 mut:
-	tree []Element
 	render(mut app App)
 	init(url string, width int)
 }
@@ -239,7 +238,7 @@ fn get_tree(url string) []Element {
 		c := p.main_content[p.nb]
 		if p.in_balise {
 			if c == `/` && p.main_content[p.nb + 1] == `>` {
-				p.escape_tag()
+				p.escape_tag() 
 			} else if c == `>` {
 				p.close_tag()
 			} else {
@@ -281,6 +280,8 @@ fn get_tree(url string) []Element {
 		}
 		p.nb += 1
 	}
+//	println(p)
+	println("Got & parsed ${url}")
 	return p.parents
 }
 
@@ -292,6 +293,7 @@ fn (mut p Parse) escape_tag() {
 	} else {
 		mut last := p.stack[p.stack.len - 1]
 		if mut last is Balise {
+			last.process_attr()
 			for mut last_child in last.children {
 				if mut last_child is RawText {
 					last_child.split_txt = last_child.txt.split('\n')
@@ -306,10 +308,7 @@ fn (mut p Parse) escape_tag() {
 	}
 }
 
-fn (mut p Parse) close_tag() {
-	p.in_balise = false
-	mut last := p.stack[p.stack.len - 1]
-	if mut last is Balise {
+fn (mut last Balise) process_attr() {
 		if i := last.attr.index('class=') {
 			start := i + 7 // class="
 			mut end := start + 1
@@ -344,6 +343,13 @@ fn (mut p Parse) close_tag() {
 			last.href = last.attr[start..end]
 		}
 		last.attr = '' // free memory I guess
+}
+
+fn (mut p Parse) close_tag() {
+	p.in_balise = false
+	mut last := p.stack[p.stack.len - 1]
+	if mut last is Balise {
+		last.process_attr()
 		if last.@type in non_closing {
 			p.stack.pop()
 		}
