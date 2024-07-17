@@ -3,7 +3,7 @@ import gg
 import gx
 import os
 
-const non_closing = [Variant.br, .img, .hr, .doctype, .meta, .link, .title, .path]
+const non_closing = [Variant.br, .img, .hr, .doctype, .meta, .link, .title, .path, .rect, .input]
 const basic_cfg = gx.TextCfg{
 	color: gg.Color{200, 200, 200, 255}
 	size: 16
@@ -229,7 +229,7 @@ fn (e Element) raw_text() string {
 
 @[direct_array_access]
 fn get_tree(url string) []Element {
-	println('Getting ${url}')
+	println('___________________\nGetting ${url}')
 	res := http.get(url) or { panic('http get err: ${err}') }
 	mut p := Parse{
 		main_content: res.body
@@ -238,7 +238,11 @@ fn get_tree(url string) []Element {
 		c := p.main_content[p.nb]
 		if p.in_balise {
 			if c == `/` && p.main_content[p.nb + 1] == `>` {
-				p.escape_tag() 
+				if (p.stack.last() as Balise).@type !in non_closing {
+					println('if ${(p.stack.last() as Balise).@type} is a non-closing tag, please add it to the non-closing array')
+				}
+				p.close_tag()
+				p.nb++
 			} else if c == `>` {
 				p.close_tag()
 			} else {
@@ -280,8 +284,8 @@ fn get_tree(url string) []Element {
 		}
 		p.nb += 1
 	}
-//	println(p)
-	println("Got & parsed ${url}")
+	//	println(p)
+	println('Got & parsed ${url}')
 	return p.parents
 }
 
@@ -309,40 +313,40 @@ fn (mut p Parse) escape_tag() {
 }
 
 fn (mut last Balise) process_attr() {
-		if i := last.attr.index('class=') {
-			start := i + 7 // class="
-			mut end := start + 1
-			for c in last.attr[start + 1..] { // search the closing "
-				if c == `"` {
-					break
-				}
-				end += 1
+	if i := last.attr.index('class=') {
+		start := i + 7 // class="
+		mut end := start + 1
+		for c in last.attr[start + 1..] { // search the closing "
+			if c == `"` {
+				break
 			}
-			last.class = last.attr[start..end]
+			end += 1
 		}
-		if i := last.attr.index('id=') {
-			start := i + 4 // id="
-			mut end := start + 1
-			for c in last.attr[start + 1..] {
-				if c == `"` {
-					break
-				}
-				end += 1
+		last.class = last.attr[start..end]
+	}
+	if i := last.attr.index('id=') {
+		start := i + 4 // id="
+		mut end := start + 1
+		for c in last.attr[start + 1..] {
+			if c == `"` {
+				break
 			}
-			last.id = last.attr[start..end]
+			end += 1
 		}
-		if i := last.attr.index('href=') {
-			start := i + 6
-			mut end := start + 1
-			for c in last.attr[start + 1..] {
-				if c == `"` {
-					break
-				}
-				end += 1
+		last.id = last.attr[start..end]
+	}
+	if i := last.attr.index('href=') {
+		start := i + 6
+		mut end := start + 1
+		for c in last.attr[start + 1..] {
+			if c == `"` {
+				break
 			}
-			last.href = last.attr[start..end]
+			end += 1
 		}
-		last.attr = '' // free memory I guess
+		last.href = last.attr[start..end]
+	}
+	last.attr = '' // free memory I guess
 }
 
 fn (mut p Parse) close_tag() {
