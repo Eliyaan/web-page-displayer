@@ -17,6 +17,7 @@ mut:
 	stack        []&Element // why not []&Balise?
 	in_balise    bool
 	nb           int
+	code         bool
 }
 
 enum Variant {
@@ -263,7 +264,7 @@ fn get_tree(url string) []Element {
 			if c == `<` {
 				p.process_open_tag()
 			} else {
-				if c != `\t` && p.stack.len > 0 { // TODO: need to find a way to handle tabs for code indentation
+				if (c != `\t` || p.code) && p.stack.len > 0 {
 					mut last := p.stack[p.stack.len - 1]
 					if mut last is Balise { // sure
 						mut l := last.children.len
@@ -274,7 +275,11 @@ fn get_tree(url string) []Element {
 						l = last.children.len
 						mut raw_txt := &last.children[l - 1]
 						if mut raw_txt is RawText {
-							raw_txt.txt += c.ascii_str()
+							if c == `\t` {
+								raw_txt.txt += '    '
+							} else {
+								raw_txt.txt += c.ascii_str()
+							}
 						} else {
 							panic('handle not rawtext ${@FILE_LINE}')
 						}
@@ -294,6 +299,9 @@ fn (mut p Parse) escape_tag() {
 	p.in_balise = false
 	if p.stack.len == 1 {
 		p.parents << *p.stack.pop()
+		if (p.parents.last() as Balise).@type == .code {
+			p.code = false
+		}
 	} else {
 		mut last := p.stack[p.stack.len - 1]
 		if mut last is Balise {
@@ -420,6 +428,9 @@ fn (mut p Parse) process_open_tag() {
 					p.stack << &Balise{
 						@type: vari
 					}
+				}
+				if vari == .code {
+					p.code = true
 				}
 			} else { // does not handle all the bad cases
 				println(p.main_content[p.nb - 10..p.nb + 10])

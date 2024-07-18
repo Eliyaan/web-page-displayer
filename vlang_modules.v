@@ -2,13 +2,9 @@
 This file handles modules.vlang.io
 
 TODO:
-tab problem in structs (maybe a problem to solve in the parser)
 store actual url to be able to copy it && init with good url when init of change size
 box gg ctx draw circle line
-
-broken pages:
-builtin (never shows up)
-datatypes (tree does not get returned)
+profile when changing pages (a bit too slow, should be only slowed by the http request
 */
 import gg
 import gx
@@ -318,7 +314,8 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 			RawText {
 				if c.txt != linebreaks#[..c.txt.len] || in_code || code {
 					for n, t in c.split_txt {
-						if t != '' {
+						space_rep := ' '.repeat(t.len)
+						if (in_code || code) || t != space_rep {
 							if v.w + t.len * text.size / 2 < width {
 								if (in_code || code) && v.max_w == -1 {
 									v.max_w = v.w
@@ -342,12 +339,19 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 									text.h = v.h
 									text.w = v.w
 									text.t = txt[..i] // txt is bigger than i
-									v.w = 0
-									v.h += v.line_h
 									if text.t != '' { // could happen if whole word/text of txt is linebreaked
 										v.content << text
-										v.max_w = txt.len * text.size / 2
+										v.max_w = v.w + text.t.len * (text.size / 2)
+									} else {
+										if !txt.contains(' ') && txt.len * (text.size / 2) > width {
+											i = (width - v.w) / (text.size / 2)
+											text.t = txt[..i] // txt is bigger than i
+											v.content << text
+											v.max_w = v.w + text.t.len * (text.size / 2)
+										}
 									}
+									v.w = 0
+									v.h += v.line_h
 									txt = txt[i..]
 								}
 								// the last cut part
@@ -371,10 +375,10 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 									}
 								}
 							}
-						}
-						if n < c.split_txt.len - 1 && c.split_txt.len > 1 {
-							v.h += v.line_h
-							v.w = 0
+							if n < c.split_txt.len - 1 && c.split_txt.len > 1 {
+								v.h += v.line_h
+								v.w = 0
+							}
 						}
 					}
 				}
