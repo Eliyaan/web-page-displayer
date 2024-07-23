@@ -2,17 +2,23 @@
 This file handles modules.vlang.io
 
 TODO:
-copy url of site
-1/3 of page loading time is spent outsite the request (profiled without -prod)
-
+//bugs
+os not working
 does not work with little screen size
-box breaked at -> gg ctx draw circle line
 remove all the bugs in this page
+
+//later
 search bar? dont know how
 ctrl f
 
+//can we accel these bad requests
+1/3 of page loading time is spent outsite the request (profiled without -prod)
+
+//general
+show millis perf frame on top of screen
 site search/selection menu + theme/layouts (think abt how to organize it, map[base_url][]structs))
-save website html (be able to load it from the file rather than http request) (toggle in settings)
+copy url of site
+save website html (be able to load it from the file rather than http request) (toggle save in settings)
 customization menu (rounded, color scheme...)
 break all main.v functions into smaller ones, then write tests for all of them
 raw text for all pages that the parser supports
@@ -45,14 +51,16 @@ mut:
 	modules    []Text
 	id_jumps   map[string]int
 	render     bool // if init in middle of rendering happens
+	rounded    bool = true
 }
 
 struct Box {
 mut:
-	x int
-	y int
-	h int
-	w int
+	x      int
+	y      int
+	h      int
+	w      int
+	primed bool
 }
 
 struct Text {
@@ -191,8 +199,13 @@ fn (v VlangModules) show_content(app App, offset int) {
 		for b in v.code_boxes {
 			y := b.y - app.scroll - rect_margin / 2
 			if y + b.h > 0 && y < app.s_size.height {
-				app.ctx.draw_rect_filled(b.x + offset - rect_margin, y, b.w + rect_margin * 2,
-					b.h + rect_margin, gg.Color{45, 55, 72, 255})
+				if v.rounded {
+					app.ctx.draw_rounded_rect_filled(b.x + offset - rect_margin, y, b.w +
+						rect_margin * 2, b.h + rect_margin, 5, gg.Color{45, 55, 72, 255})
+				} else {
+					app.ctx.draw_rect_filled(b.x + offset - rect_margin, y, b.w + rect_margin * 2,
+						b.h + rect_margin, gg.Color{45, 55, 72, 255})
+				}
 			}
 		}
 		for t in v.content {
@@ -346,6 +359,7 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 								if v.w > v.max_w {
 									v.max_w = v.w
 								}
+								box.primed = true
 							} else {
 								mut txt := t
 								for v.w + txt.len * (text.size / 2) > width {
@@ -360,12 +374,22 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 									if text.t != '' { // could happen if whole word/text of txt is linebreaked
 										v.content << text
 										v.max_w = v.w + text.t.len * (text.size / 2)
+										box.primed = true
+										if box.x != 0 && b.check_is(.code, '', '') { // if x == 0 just do big box
+											box.h = v.h - box.y + v.line_h
+											box.w = v.max_w - box.x
+											v.code_boxes << box
+											box.x = 0
+											box.y = v.h + v.line_h
+											v.max_w = 0
+										}
 									} else {
 										if !txt.contains(' ') && txt.len * (text.size / 2) > width {
 											i = (width - v.w) / (text.size / 2)
 											text.t = txt[..i] // txt is bigger than i
 											v.content << text
 											v.max_w = v.w + text.t.len * (text.size / 2)
+											box.primed = true
 										}
 									}
 									v.w = 0
@@ -386,11 +410,18 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 										if v.w > v.max_w {
 											v.max_w = v.w
 										}
-										box.x = 0
-										box.y = v.h
+										if !box.primed {
+											box.x = 0
+											box.y = v.h
+										}
 									} else {
-										v.max_w = width
+										if box.y != v.h {
+											v.max_w = width
+										} else {
+											v.max_w = v.w
+										}
 									}
+									box.primed = true
 								}
 							}
 							if n < c.split_txt.len - 1 && c.split_txt.len > 1 {
