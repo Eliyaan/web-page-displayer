@@ -2,9 +2,21 @@
 This file handles modules.vlang.io
 
 TODO:
-store actual url to be able to copy it && init with good url when init of change size
-box gg ctx draw circle line
-profile when changing pages (a bit too slow, should be only slowed by the http request
+copy url of site
+1/3 of page loading time is spent outsite the request (profiled without -prod)
+
+does not work with little screen size
+box breaked at -> gg ctx draw circle line
+remove all the bugs in this page
+search bar? dont know how
+ctrl f
+
+site search/selection menu + theme/layouts (think abt how to organize it, map[base_url][]structs))
+save website html (be able to load it from the file rather than http request) (toggle in settings)
+customization menu (rounded, color scheme...)
+break all main.v functions into smaller ones, then write tests for all of them
+raw text for all pages that the parser supports
+read-me to encourage to contribute/use
 */
 import gg
 import gx
@@ -17,6 +29,7 @@ const rect_margin = 2
 struct VlangModules {
 mut:
 	tree     Element
+	url      string
 	readme   []string
 	text_cfg gx.TextCfg = gx.TextCfg{
 		size: 18
@@ -53,12 +66,18 @@ mut:
 }
 
 fn (mut r VlangModules) init(url string, width int) {
+	r.url = url
+	r.tree = get_tree(url)[0]
+	r.resize(width)
+}
+
+fn (mut r VlangModules) resize(width int) {
+	println('Resizing site')
 	r.id_jumps = map[string]int{}
 	r.code_boxes = []
 	r.toc = []
 	r.content = []
 	r.modules = []
-	r.tree = get_tree(url)[0]
 	base_txt := Text{
 		size: u8(r.text_cfg.size)
 		color: gx.white
@@ -81,8 +100,7 @@ fn (mut r VlangModules) init(url string, width int) {
 	toc := r.tree.get(.div, 'doc-toc', '') or { panic('did not find elem in page') }
 	println('Processing table of contents')
 	r.process_toc(toc, base_txt, false)
-	r.tree = RawText{}
-	println('Finished processing ${url}')
+	println('Finished processing')
 }
 
 fn (mut r VlangModules) render(mut app App) {

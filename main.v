@@ -99,12 +99,13 @@ interface Render {
 mut:
 	render(mut app App)
 	init(url string, width int)
+	resize(width int)
 }
 
 struct App {
 mut:
 	ctx        &gg.Context = unsafe { nil }
-	s_size     gg.Size
+	s_size     gg.Size     = gg.Size{2000, 1000}
 	render     Render
 	free_frame int = 2
 	scroll     int
@@ -125,6 +126,7 @@ fn main() {
 		event_fn: event
 		font_path: os.resource_abs_path('fonts/SourceCodePro-Medium.ttf')
 	)
+	app.render.init('https://modules.vlang.io', app.s_size.width)
 	app.ctx.run()
 }
 
@@ -149,7 +151,7 @@ fn frame(mut app App) {
 	if app.free_frame == 0 {
 		if gg.window_size() != app.s_size {
 			app.s_size = gg.window_size()
-			app.render.init('https://modules.vlang.io/gg.html', app.s_size.width)
+			app.render.resize(app.s_size.width)
 		}
 		app.ctx.begin()
 		app.render.render(mut app)
