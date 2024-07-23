@@ -13,8 +13,8 @@ const linebreaks = '\n\n\n\n\n\n\n\n\n\n\n\n\n'
 struct Parse {
 mut:
 	main_content string
-	parents      []Element
 	stack        []&Element // why not []&Balise?
+	parents      []Element
 	in_balise    bool
 	nb           int
 	code         bool
@@ -77,14 +77,14 @@ enum Variant {
 
 struct Balise { // replace with english name
 mut:
+	children  []Element
+	codebox_h int
+	codebox_w int
 	@type     Variant
 	attr      string // inside the balise
 	class     string
 	id        string
 	href      string
-	children  []Element
-	codebox_h int
-	codebox_w int
 }
 
 struct RawText {
@@ -105,7 +105,7 @@ mut:
 struct App {
 mut:
 	ctx        &gg.Context = unsafe { nil }
-	s_size     gg.Size     = gg.Size{2000, 1000}
+	s_size     gg.Size     = gg.Size{1000, 700}
 	render     Render
 	free_frame int = 2
 	scroll     int
@@ -291,8 +291,15 @@ fn get_tree(url string) []Element {
 		}
 		p.nb += 1
 	}
-	//	println(p)
-	println('Got & parsed ${url}')
+	if p.parents.len == 0 {
+		dump(p)
+		for elem in p.stack {
+			println((elem as Balise).@type)
+		}
+		println('p.parents is empty, see parse tree info above')
+	} else {
+		println('Got & parsed ${url}')
+	}
 	return p.parents
 }
 

@@ -4,8 +4,7 @@ This file handles modules.vlang.io
 TODO:
 //bugs
 os not working
-does not work with little screen size
-remove all the bugs in this page
+check for bugs in this page
 
 //later
 search bar? dont know how
@@ -23,6 +22,7 @@ customization menu (rounded, color scheme...)
 break all main.v functions into smaller ones, then write tests for all of them
 raw text for all pages that the parser supports
 read-me to encourage to contribute/use
+report flashing in gg's ui-mode
 */
 import gg
 import gx
@@ -345,6 +345,7 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 			RawText {
 				if c.txt != linebreaks#[..c.txt.len] || in_code || code {
 					for n, t in c.split_txt {
+						println(t)
 						space_rep := ' '.repeat(t.len)
 						if (in_code || code) || t != space_rep {
 							if v.w + t.len * text.size / 2 < width {
@@ -384,12 +385,14 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 											v.max_w = 0
 										}
 									} else {
-										if !txt.contains(' ') && txt.len * (text.size / 2) > width {
+										if (txt.index(' ') or { txt.len }) * (text.size / 2) > width { // if the size of the text before the next space is bigger than a line we need to break it
 											i = (width - v.w) / (text.size / 2)
 											text.t = txt[..i] // txt is bigger than i
 											v.content << text
 											v.max_w = v.w + text.t.len * (text.size / 2)
 											box.primed = true
+										} else {
+											// if the len of the text before the next space is smaller than a line it will fit on next line
 										}
 									}
 									v.w = 0
@@ -429,6 +432,7 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 								v.w = 0
 							}
 						}
+						println('pas t')
 					}
 				}
 			}
