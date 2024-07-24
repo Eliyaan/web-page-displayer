@@ -345,7 +345,6 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 			RawText {
 				if c.txt != linebreaks#[..c.txt.len] || in_code || code {
 					for n, t in c.split_txt {
-						println(t)
 						space_rep := ' '.repeat(t.len)
 						if (in_code || code) || t != space_rep {
 							if v.w + t.len * text.size / 2 < width {
@@ -432,7 +431,6 @@ fn (mut v VlangModules) process_content(b Balise, width int, cfg Text, in_code b
 								v.w = 0
 							}
 						}
-						println('pas t')
 					}
 				}
 			}

@@ -44,8 +44,8 @@ fn get_tree(url string) []Balise {
 		c := p.main_content[p.nb]
 		if p.in_balise {
 			if c == `/` && p.main_content[p.nb + 1] == `>` {
-				if is_not_closing(p.stack.last()) {
-					println('if ${p.stack.last().@type} seems to be a not-closing tag, please add it to the non-closing array')
+				if !is_not_closing(p.stack.last()) {
+					println('${p.stack.last().@type} seems to be a not-closing tag, please add it to the non-closing array')
 				}
 				p.close_tag()
 				p.nb++
@@ -66,25 +66,7 @@ fn get_tree(url string) []Balise {
 			if c == `<` {
 				p.process_open_tag()
 			} else {
-				if (c != `\t` || p.code) && p.stack.len > 0 {
-					mut last := p.stack[p.stack.len - 1]
-					mut l := last.children.len
-					if l == 0 || last.children[l - 1] is Balise {
-						last.children << RawText{}
-					} else {
-					} // no problem
-					l = last.children.len
-					mut raw_txt := &last.children[l - 1]
-					if mut raw_txt is RawText {
-						if c == `\t` {
-							raw_txt.txt += '    '
-						} else {
-							raw_txt.txt += c.ascii_str()
-						}
-					} else {
-						panic('handle not rawtext ${@FILE_LINE}')
-					}
-				}
+				p.process_text_char(c)
 			}
 		}
 		p.nb += 1
@@ -101,6 +83,28 @@ fn get_tree(url string) []Balise {
 	return p.parents
 }
 
+//not tested
+fn (mut b Balise) ensure_last_children_is_rawtext() {
+		l := b.children.len
+		if l == 0 || b.children[l - 1] is Balise {
+			b.children << RawText{}
+		}
+}
+
+// not tested
+fn (mut p Parse) process_text_char(c u8) {
+	if (c != `\t` || p.code) && p.stack.len > 0 {
+		mut last := p.stack[p.stack.len - 1]
+		last.ensure_last_children_is_rawtext()
+		mut raw_txt := &(last.children[last.children.len - 1] as RawText)
+			if c == `\t` {
+				raw_txt.txt += '    '
+			} else {
+				raw_txt.txt += c.ascii_str()
+			}
+	}
+}
+
 // not tested
 @[direct_array_access]
 fn (mut p Parse) escape_tag() {
@@ -112,12 +116,12 @@ fn (mut p Parse) escape_tag() {
 		}
 	} else {
 		mut last := p.stack[p.stack.len - 1]
-			last.process_attr()
-			for mut last_child in last.children {
-				if mut last_child is RawText {
-					last_child.split_txt = last_child.txt.split('\n')
-				}
+		last.process_attr()
+		for mut last_child in last.children {
+			if mut last_child is RawText {
+				last_child.split_txt = last_child.txt.split('\n')
 			}
+		}
 		p.stack.pop()
 	}
 	p.nb += 1
@@ -168,10 +172,10 @@ fn (mut last Balise) process_attr() {
 fn (mut p Parse) close_tag() {
 	p.in_balise = false
 	mut last := p.stack[p.stack.len - 1]
-		last.process_attr()
-		if is_not_closing(last) {
-			p.stack.pop()
-		}
+	last.process_attr()
+	if is_not_closing(last) {
+		p.stack.pop()
+	}
 }
 
 // not tested
