@@ -63,7 +63,7 @@ fn is_end_of_not_closing_tag(c u8, c_1 u8) bool {
 
 // not tested
 @[direct_array_access]
-fn get_tree(url string) []Balise {
+fn get_tree(url string) ![]Balise {
 	println('___________________\nGetting ${url}')
 	res := http.get(url) or { panic('http get err: ${err}') }
 	mut p := Parse{
@@ -93,11 +93,11 @@ fn get_tree(url string) []Balise {
 		for elem in p.stack {
 			println(elem.@type)
 		}
-		println('p.parents is empty, see parse tree info above')
+		return error('p.parents is empty, see parse tree info above')
 	} else {
 		println('Got & parsed ${url}')
+		return p.parents
 	}
-	return p.parents
 }
 
 // not tested
@@ -135,9 +135,6 @@ fn (mut p Parse) escape_tag() {
 	p.in_balise = false
 	if p.stack.len == 1 {
 		p.parents << *p.stack.pop()
-		if p.parents.last().@type == .code {
-			p.code = false
-		}
 	} else {
 		mut last := p.stack[p.stack.len - 1]
 		last.process_attr()
@@ -188,6 +185,22 @@ fn (mut p Parse) close_tag() {
 	}
 }
 
+fn (mut p Parse) abort_process_open_tag() {
+				p.in_balise = false
+				mut last := p.stack[p.stack.len - 1]
+				empty := last.children.len == 0
+				if empty {
+					last.children << RawText{}
+				}
+				mut child := &last.children[last.children.len - 1]
+				if mut child is RawText {
+					child.txt += '<' // to not lose the <
+				} else {
+					panic('handle not raw text ${@FILE_LINE}')
+				}
+				p.nb = old_nb - 1
+}
+
 // not tested
 @[direct_array_access]
 fn (mut p Parse) process_open_tag() {
@@ -203,20 +216,7 @@ fn (mut p Parse) process_open_tag() {
 				name += p.main_content[p.nb].ascii_str()
 				p.nb += 1
 			} else {
-				p.in_balise = false
-				// debug println("not name ${main_content[nb].ascii_str()}  name:${name}")
-				mut last := p.stack[p.stack.len - 1]
-				empty := last.children.len == 0
-				if empty {
-					last.children << RawText{}
-				}
-				mut child := &last.children[last.children.len - 1]
-				if mut child is RawText {
-					child.txt += '<' // to not lose the <
-				} else {
-					panic('handle not raw text ${@FILE_LINE}')
-				}
-				p.nb = old_nb - 1
+				p.abort_process_open_tag()
 				return
 			}
 		}

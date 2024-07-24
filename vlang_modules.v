@@ -75,8 +75,12 @@ mut:
 
 fn (mut r VlangModules) init(url string, width int) {
 	r.url = url
-	r.tree = get_tree(url)[0]
-	r.resize(width)
+	if tree:= get_tree(url) {
+		r.tree = tree[0]
+		r.resize(width)
+	} else {
+		println(err)
+	}
 }
 
 fn (mut r VlangModules) resize(width int) {
