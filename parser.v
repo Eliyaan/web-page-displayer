@@ -44,10 +44,8 @@ fn (mut p Parse) handle_end_of_not_closing_tag() {
 }
 
 // not tested
-fn (mut p Parse) handle_attr_text(c u8) {
+fn (mut top Balise) handle_attr_text(c u8) {
 	if c != `\t` {
-		mut top := p.stack[p.stack.len - 1]
-
 		if c == `\n` {
 			top.attr += ' '
 		} else {
@@ -56,7 +54,6 @@ fn (mut p Parse) handle_attr_text(c u8) {
 	}
 }
 
-// not tested
 fn is_end_of_not_closing_tag(c u8, c_1 u8) bool {
 	return c == `/` && c_1 == `>`
 }
@@ -77,7 +74,7 @@ fn get_tree(url string) ![]Balise {
 			} else if c == `>` {
 				p.close_tag()
 			} else {
-				p.handle_attr_text(c)
+				p.stack[p.stack.len - 1].handle_attr_text(c)
 			}
 		} else {
 			if c == `<` {
@@ -185,6 +182,7 @@ fn (mut p Parse) close_tag() {
 	}
 }
 
+// not tested
 fn (mut p Parse) abort_process_open_tag(old_nb int) {
 	p.in_balise = false
 	mut last := p.stack[p.stack.len - 1]
@@ -202,6 +200,54 @@ fn (mut p Parse) abort_process_open_tag(old_nb int) {
 }
 
 // not tested
+fn (mut p Parse) get_tag_name() !string {
+	mut name := ''
+	old_nb := p.nb
+	for p.main_content[p.nb] !in [` `, `>`, `\n`] {
+		if is_valid_tag_name_char(p.main_content[p.nb]) {
+			name += p.main_content[p.nb].ascii_str()
+			p.nb += 1
+		} else {
+			p.abort_process_open_tag(old_nb)
+			return error('abort, not a name')
+		}
+	}
+	return name
+}
+
+// not tested
+fn (mut p Parse) create_tag_of_variant(vari Variant) {
+	if p.main_content[p.nb] == `>` {
+		p.in_balise = false
+	}
+	if p.stack.len > 0 {
+		mut last := p.stack[p.stack.len - 1]
+		last.children << Balise{
+			@type: vari
+		}
+		p.stack << &(last.children[last.children.len - 1] as Balise)
+	} else {
+		p.stack << &Balise{
+			@type: vari
+		}
+	}
+	if vari == .code {
+		p.code = true
+	}
+}
+
+// not tested
+fn format_tag_name(name_ string) string {
+	mut name := name_.to_lower()
+	if name[0] == `!` {
+		if name == '!doctype' {
+			name = 'doctype'
+		}
+	}
+	return name
+}
+
+// not tested
 @[direct_array_access]
 fn (mut p Parse) process_open_tag() {
 	p.nb += 1
@@ -209,42 +255,11 @@ fn (mut p Parse) process_open_tag() {
 		p.escape_tag()
 	} else {
 		p.in_balise = true
-		mut name := ''
-		old_nb := p.nb
-		for p.main_content[p.nb] !in [` `, `>`, `\n`] {
-			if is_valid_tag_name_char(p.main_content[p.nb]) {
-				name += p.main_content[p.nb].ascii_str()
-				p.nb += 1
-			} else {
-				p.abort_process_open_tag(old_nb)
-				return
-			}
-		}
+		mut name := p.get_tag_name() or { return }
 		if name.len > 0 {
-			name = name.to_lower()
-			if name[0] == `!` {
-				if name == '!doctype' {
-					name = 'doctype'
-				}
-			}
+			name = format_tag_name(name)
 			if vari := Variant.from(name) {
-				if p.main_content[p.nb] == `>` {
-					p.in_balise = false
-				}
-				if p.stack.len > 0 {
-					mut last := p.stack[p.stack.len - 1]
-					last.children << Balise{
-						@type: vari
-					}
-					p.stack << &(last.children[last.children.len - 1] as Balise)
-				} else {
-					p.stack << &Balise{
-						@type: vari
-					}
-				}
-				if vari == .code {
-					p.code = true
-				}
+				p.create_tag_of_variant(vari)
 			} else { // does not handle all the bad cases
 				println(p.main_content[p.nb - 10..p.nb + 10])
 				println('${err} : `${name}` The parser wont work as intended.')
@@ -254,15 +269,7 @@ fn (mut p Parse) process_open_tag() {
 				p.in_balise = false
 			}
 		} else {
-			p.in_balise = false
-			p.nb -= 1
-			mut last := p.stack[p.stack.len - 1]
-			mut child := &last.children[last.children.len - 1]
-			if mut child is RawText {
-				child.txt += '<' // to not lose the <			
-			} else {
-				panic('handle not rawtext ${@FILE_LINE}')
-			}
+			p.abort_process_open_tag(p.nb)
 		}
 	}
 }
