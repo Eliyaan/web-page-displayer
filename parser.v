@@ -3,6 +3,17 @@ module main
 import net.http
 
 const used_attrs = ['class', 'id', 'href']
+const not_closing = [Variant.br, .img, .hr, .doctype, .meta, .link, .title, .path, .rect, .input]
+
+struct Parse {
+mut:
+	main_content string
+	stack        []&Balise
+	parents      []Balise
+	in_balise    bool
+	nb           int
+	code         bool
+}
 
 // not tested
 fn (e Element) get(v Variant, class string, id string) ?Balise {
@@ -29,18 +40,16 @@ fn (b Balise) check_is(v Variant, class string, id string) bool {
 	return false
 }
 
-// not tested
 fn is_not_closing(b Balise) bool {
 	return b.@type in not_closing
 }
 
-// not tested
 fn (mut p Parse) handle_end_of_not_closing_tag() {
 	if !is_not_closing(p.stack.last()) {
 		println('${p.stack.last().@type} seems to be a not-closing tag, please add it to the non-closing array')
 	}
 	p.close_tag()
-	p.nb++
+	p.nb++ // nb = / ; nb+1 = >
 }
 
 // not tested
@@ -172,7 +181,6 @@ fn (mut b Balise) process_attr() {
 	b.attr = '' // free memory I guess
 }
 
-// not tested
 fn (mut p Parse) close_tag() {
 	p.in_balise = false
 	mut last := p.stack[p.stack.len - 1]

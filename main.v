@@ -4,22 +4,11 @@ import gg
 import gx
 import os
 
-const not_closing = [Variant.br, .img, .hr, .doctype, .meta, .link, .title, .path, .rect, .input]
 const basic_cfg = gx.TextCfg{
 	color: gg.Color{200, 200, 200, 255}
 	size: 16
 }
 const linebreaks = '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n'
-
-struct Parse {
-mut:
-	main_content string
-	stack        []&Balise
-	parents      []Balise
-	in_balise    bool
-	nb           int
-	code         bool
-}
 
 enum Variant {
 	doctype
@@ -166,7 +155,7 @@ fn frame(mut app App) {
 	app.clicked = false
 }
 
-// Not used
+// TODO: use for raw text rendering of unknown pages
 fn organise_render(txt string, font_size int, width int) []string { // TODO split line on space if possible
 	mut output := []string{}
 	line_length := width / (font_size / 2)

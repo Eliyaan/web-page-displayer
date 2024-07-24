@@ -14,7 +14,7 @@ ctrl f
 1/3 of page loading time is spent outsite the request (profiled without -prod)
 
 //general
-show millis perf frame on top of screen
+show millis per frame on top of screen
 site search/selection menu + theme/layouts (think abt how to organize it, map[base_url][]structs))
 copy url of site
 save website html (be able to load it from the file rather than http request) (toggle save in settings)

@@ -46,6 +46,31 @@ fn test_is_valid_tag_name_char() {
 	assert is_valid_tag_name_char(`:`) == false
 }
 
+fn test_close_tag() {
+	mut p := Parse{
+		in_balise: true
+		stack: [&Balise{
+			@type: .html
+		}]
+	}
+	check_close_tag(mut p)
+	mut p2 := Parse{
+		in_balise: true
+		stack: [&Balise{
+			@type: .br
+		}]
+	}
+	check_close_tag(mut p2)
+}
+
+fn check_close_tag(mut p Parse) {
+	is_closing := !is_not_closing(p.stack[p.stack.len - 1])
+	old_len := p.stack.len
+	p.close_tag()
+	assert p.in_balise == false
+	assert is_closing || p.stack.len == old_len - 1
+}
+
 fn test_sites() {
 	get_tree('https://modules.vlang.io')!
 	get_tree('https://modules.vlang.io/gg.html')!
