@@ -1,3 +1,7 @@
+/*
+Tests to ensure the parser works as intended
+*/
+
 module main
 
 fn test_check_is() {

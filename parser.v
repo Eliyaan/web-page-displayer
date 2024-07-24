@@ -2,6 +2,8 @@ module main
 
 import net.http
 
+const used_attrs = ['class', 'id', 'href']
+
 // not tested
 fn (e Element) get(v Variant, class string, id string) ?Balise {
 	if e is Balise {
@@ -33,6 +35,33 @@ fn is_not_closing(b Balise) bool {
 }
 
 // not tested
+fn (mut p Parse) handle_end_of_not_closing_tag() {
+	if !is_not_closing(p.stack.last()) {
+		println('${p.stack.last().@type} seems to be a not-closing tag, please add it to the non-closing array')
+	}
+	p.close_tag()
+	p.nb++
+}
+
+// not tested
+fn (mut p Parse) handle_attr_text(c u8) {
+	if c != `\t` {
+		mut top := p.stack[p.stack.len - 1]
+
+		if c == `\n` {
+			top.attr += ' '
+		} else {
+			top.attr += c.ascii_str()
+		}
+	}
+}
+
+// not tested
+fn is_end_of_not_closing_tag(c u8, c_1 u8) bool {
+	return c == `/` && c_1 == `>`
+}
+
+// not tested
 @[direct_array_access]
 fn get_tree(url string) []Balise {
 	println('___________________\nGetting ${url}')
@@ -40,27 +69,15 @@ fn get_tree(url string) []Balise {
 	mut p := Parse{
 		main_content: res.body
 	}
-	parse: for p.nb < p.main_content.len {
+	for p.nb < p.main_content.len {
 		c := p.main_content[p.nb]
 		if p.in_balise {
-			if c == `/` && p.main_content[p.nb + 1] == `>` {
-				if !is_not_closing(p.stack.last()) {
-					println('${p.stack.last().@type} seems to be a not-closing tag, please add it to the non-closing array')
-				}
-				p.close_tag()
-				p.nb++
+			if is_end_of_not_closing_tag(c, p.main_content[p.nb + 1]) {
+				p.handle_end_of_not_closing_tag()
 			} else if c == `>` {
 				p.close_tag()
 			} else {
-				if c != `\t` {
-					mut tag := p.stack[p.stack.len - 1]
-
-					if c == `\n` {
-						tag.attr += ' '
-					} else {
-						tag.attr += c.ascii_str()
-					}
-				}
+				p.handle_attr_text(c)
 			}
 		} else {
 			if c == `<` {
@@ -83,25 +100,32 @@ fn get_tree(url string) []Balise {
 	return p.parents
 }
 
-//not tested
+// not tested
 fn (mut b Balise) ensure_last_children_is_rawtext() {
-		l := b.children.len
-		if l == 0 || b.children[l - 1] is Balise {
-			b.children << RawText{}
-		}
+	l := b.children.len
+	if l == 0 || b.children[l - 1] is Balise {
+		b.children << RawText{}
+	}
+}
+
+// not tested
+fn (p Parse) is_actual_content(c u8) bool {
+	has_page_started := p.stack.len > 0
+	is_not_unwanted_tabs := c != `\t` || p.code
+	return is_not_unwanted_tabs && has_page_started
 }
 
 // not tested
 fn (mut p Parse) process_text_char(c u8) {
-	if (c != `\t` || p.code) && p.stack.len > 0 {
-		mut last := p.stack[p.stack.len - 1]
-		last.ensure_last_children_is_rawtext()
-		mut raw_txt := &(last.children[last.children.len - 1] as RawText)
-			if c == `\t` {
-				raw_txt.txt += '    '
-			} else {
-				raw_txt.txt += c.ascii_str()
-			}
+	if p.is_actual_content(c) {
+		mut top := p.stack[p.stack.len - 1]
+		top.ensure_last_children_is_rawtext()
+		mut raw_txt := &(top.children[top.children.len - 1] as RawText)
+		if c == `\t` {
+			raw_txt.txt += '    '
+		} else {
+			raw_txt.txt += c.ascii_str()
+		}
 	}
 }
 
@@ -131,41 +155,27 @@ fn (mut p Parse) escape_tag() {
 }
 
 // not tested
-fn (mut last Balise) process_attr() {
-	if i := last.attr.index('class=') {
-		start := i + 7 // class="
-		mut end := start + 1
-		for c in last.attr[start + 1..] { // search the closing "
-			if c == `"` {
-				break
+fn (mut b Balise) process_attr() {
+	for attr_name in used_attrs {
+		if i := b.attr.index(attr_name + '="') {
+			start := i + attr_name.len + 2 // + '="'.len
+			mut end := start + 1
+			for c in b.attr[start + 1..] { // search the closing "
+				if c == `"` {
+					break
+				}
+				end += 1
 			}
-			end += 1
-		}
-		last.class = last.attr[start..end]
-	}
-	if i := last.attr.index('id=') {
-		start := i + 4 // id="
-		mut end := start + 1
-		for c in last.attr[start + 1..] {
-			if c == `"` {
-				break
+			attr_str := b.attr[start..end]
+			match attr_name {
+				'class' { b.class = attr_str }
+				'id' { b.id = attr_str }
+				'href' { b.href = attr_str }
+				else { panic('${attr_name} attr not handled') }
 			}
-			end += 1
 		}
-		last.id = last.attr[start..end]
 	}
-	if i := last.attr.index('href=') {
-		start := i + 6
-		mut end := start + 1
-		for c in last.attr[start + 1..] {
-			if c == `"` {
-				break
-			}
-			end += 1
-		}
-		last.href = last.attr[start..end]
-	}
-	last.attr = '' // free memory I guess
+	b.attr = '' // free memory I guess
 }
 
 // not tested
