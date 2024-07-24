@@ -185,20 +185,20 @@ fn (mut p Parse) close_tag() {
 	}
 }
 
-fn (mut p Parse) abort_process_open_tag() {
-				p.in_balise = false
-				mut last := p.stack[p.stack.len - 1]
-				empty := last.children.len == 0
-				if empty {
-					last.children << RawText{}
-				}
-				mut child := &last.children[last.children.len - 1]
-				if mut child is RawText {
-					child.txt += '<' // to not lose the <
-				} else {
-					panic('handle not raw text ${@FILE_LINE}')
-				}
-				p.nb = old_nb - 1
+fn (mut p Parse) abort_process_open_tag(old_nb int) {
+	p.in_balise = false
+	mut last := p.stack[p.stack.len - 1]
+	empty := last.children.len == 0
+	if empty {
+		last.children << RawText{}
+	}
+	mut child := &last.children[last.children.len - 1]
+	if mut child is RawText {
+		child.txt += '<' // to not lose the <
+	} else {
+		panic('handle not raw text ${@FILE_LINE}')
+	}
+	p.nb = old_nb - 1
 }
 
 // not tested
@@ -216,7 +216,7 @@ fn (mut p Parse) process_open_tag() {
 				name += p.main_content[p.nb].ascii_str()
 				p.nb += 1
 			} else {
-				p.abort_process_open_tag()
+				p.abort_process_open_tag(old_nb)
 				return
 			}
 		}

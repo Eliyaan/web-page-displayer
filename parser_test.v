@@ -47,7 +47,7 @@ fn test_is_valid_tag_name_char() {
 }
 
 fn test_sites() {
-	get_tree("https://modules.vlang.io")!
-	get_tree("https://modules.vlang.io/gg.html")!
-//	get_tree("https://modules.vlang.io/os.html")! //TODO FIX THIS ONE
+	get_tree('https://modules.vlang.io')!
+	get_tree('https://modules.vlang.io/gg.html')!
+	//	get_tree("https://modules.vlang.io/os.html")! //TODO FIX THIS ONE
 }
