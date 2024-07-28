@@ -47,13 +47,19 @@ fn test_is_valid_tag_name_char() {
 }
 
 fn test_close_tag() {
+	mut b := &Balise{
+		@type: .html
+		attr: 'href="hey" id="hello href" class="hi id"'
+	}
 	mut p := Parse{
 		in_balise: true
-		stack: [&Balise{
-			@type: .html
-		}]
+		stack: [&Balise{}, b]
 	}
 	check_close_tag(mut p)
+	assert b.attr == ''
+	assert b.href == 'hey'
+	assert b.id == 'hello href'
+	assert b.class == 'hi id'
 	mut p2 := Parse{
 		in_balise: true
 		stack: [&Balise{
@@ -69,6 +75,19 @@ fn check_close_tag(mut p Parse) {
 	p.close_tag()
 	assert p.in_balise == false
 	assert is_closing || p.stack.len == old_len - 1
+}
+
+fn test_is_actual_content() {
+	mut p := Parse{}
+	assert p.is_actual_content(`a`) == false
+	assert p.is_actual_content(`\t`) == false
+	p.code = true
+	assert p.is_actual_content(`\t`) == false
+	p.stack << &Balise{}
+	assert p.is_actual_content(`a`) == true
+	assert p.is_actual_content(`\t`) == true
+	p.code = false
+	assert p.is_actual_content(`\t`) == false
 }
 
 fn test_sites() {

@@ -114,7 +114,6 @@ fn (mut b Balise) ensure_last_children_is_rawtext() {
 	}
 }
 
-// not tested
 fn (p Parse) is_actual_content(c u8) bool {
 	has_page_started := p.stack.len > 0
 	is_not_unwanted_tabs := c != `\t` || p.code
@@ -198,12 +197,8 @@ fn (mut p Parse) abort_process_open_tag(old_nb int) {
 	if empty {
 		last.children << RawText{}
 	}
-	mut child := &last.children[last.children.len - 1]
-	if mut child is RawText {
-		child.txt += '<' // to not lose the <
-	} else {
-		panic('handle not raw text ${@FILE_LINE}')
-	}
+	mut child := &(last.children[last.children.len - 1] as RawText)
+	child.txt += '<' // to not lose the >
 	p.nb = old_nb - 1
 }
 
