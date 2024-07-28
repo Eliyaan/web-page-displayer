@@ -130,6 +130,22 @@ fn test_handle_attr_text() {
 	assert b2.attr == attr + 'a'
 }
 
+fn test_element_get() {
+	r := RawText{}
+	assert Element(r).get(.div, '', '') == none
+	b := Balise{@type:.div, class:'hey', id:'hi'}
+	assert Element(b).get(.div, 'hey', 'hi')? == b
+	b2 := Balise{@type:.div, class:'hey', id:'hi', children:[RawText{}, Balise{}]}
+	b3 := Balise{@type:.div, class:'hey', id:'bye', children: [
+		b2
+	]}
+	assert Element(b3).get(.div, 'hey', 'hi')? == b2
+	b4 := Balise{@type:.div, class:'hey', id:'bye', children: [
+		Balise{children: [b2]}
+	]}
+	assert Element(b4).get(.div, 'hey', 'hi')? == b2
+}
+
 fn test_sites() {
 	get_tree('https://modules.vlang.io')!
 	get_tree('https://modules.vlang.io/gg.html')!

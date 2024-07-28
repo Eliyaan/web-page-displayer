@@ -15,7 +15,6 @@ mut:
 	code         bool
 }
 
-// not tested
 fn (e Element) get(v Variant, class string, id string) ?Balise {
 	if e is Balise {
 		if e.check_is(v, class, id) {
