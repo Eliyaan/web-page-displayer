@@ -90,6 +90,46 @@ fn test_is_actual_content() {
 	assert p.is_actual_content(`\t`) == false
 }
 
+fn test_ensure_last_children_is_raw_text() {
+	mut b := Balise{}
+	b.ensure_last_children_is_rawtext()
+	assert b.children.last() is RawText
+
+	mut b1 := Balise{
+		children: [Balise{}]
+	}
+	b1.ensure_last_children_is_rawtext()
+	assert b1.children.last() is RawText
+
+	mut b2 := Balise{
+		children: [Balise{}, RawText{}]
+	}
+	b2.ensure_last_children_is_rawtext()
+	assert b2.children.last() is RawText
+}
+
+fn test_handle_attr_text() {
+	attr := 'hey'
+
+	mut b := Balise{
+		attr: attr
+	}
+	b.handle_attr_text(`\t`)
+	assert b.attr == attr
+
+	mut b1 := Balise{
+		attr: attr
+	}
+	b1.handle_attr_text(`\n`)
+	assert b1.attr == attr + ' '
+
+	mut b2 := Balise{
+		attr: attr
+	}
+	b2.handle_attr_text(`a`)
+	assert b2.attr == attr + 'a'
+}
+
 fn test_sites() {
 	get_tree('https://modules.vlang.io')!
 	get_tree('https://modules.vlang.io/gg.html')!

@@ -49,10 +49,9 @@ fn (mut p Parse) handle_end_of_not_closing_tag() {
 		println('${p.stack.last().@type} seems to be a not-closing tag, please add it to the non-closing array')
 	}
 	p.close_tag()
-	p.nb++ // nb = / ; nb+1 = >
+	p.nb++ // nb = / ; nb+1 = > no need to process it
 }
 
-// not tested
 fn (mut top Balise) handle_attr_text(c u8) {
 	if c != `\t` {
 		if c == `\n` {
@@ -106,7 +105,6 @@ fn get_tree(url string) ![]Balise {
 	}
 }
 
-// not tested
 fn (mut b Balise) ensure_last_children_is_rawtext() {
 	l := b.children.len
 	if l == 0 || b.children[l - 1] is Balise {
