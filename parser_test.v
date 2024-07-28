@@ -1,5 +1,8 @@
 /*
 Tests to ensure the parser works as intended
+
+add a test for each fix
+complete the tests if you want are they are not finished
 */
 
 module main
@@ -133,20 +136,69 @@ fn test_handle_attr_text() {
 fn test_element_get() {
 	r := RawText{}
 	assert Element(r).get(.div, '', '') == none
-	b := Balise{@type:.div, class:'hey', id:'hi'}
+	b := Balise{
+		@type: .div
+		class: 'hey'
+		id: 'hi'
+	}
 	assert Element(b).get(.div, 'hey', 'hi')? == b
-	b2 := Balise{@type:.div, class:'hey', id:'hi', children:[RawText{}, Balise{}]}
-	b3 := Balise{@type:.div, class:'hey', id:'bye', children: [
-		b2
-	]}
+	b2 := Balise{
+		@type: .div
+		class: 'hey'
+		id: 'hi'
+		children: [RawText{}, Balise{}]
+	}
+	b3 := Balise{
+		@type: .div
+		class: 'hey'
+		id: 'bye'
+		children: [
+			b2,
+		]
+	}
 	assert Element(b3).get(.div, 'hey', 'hi')? == b2
-	b4 := Balise{@type:.div, class:'hey', id:'bye', children: [
-		Balise{children: [b2]}
-	]}
+	b4 := Balise{
+		@type: .div
+		class: 'hey'
+		id: 'bye'
+		children: [
+			Balise{
+				children: [b2]
+			},
+		]
+	}
 	assert Element(b4).get(.div, 'hey', 'hi')? == b2
 }
 
+fn test_process_text_char() {
+	mut p := Parse{
+		stack: [&Balise{
+			children: [RawText{}]
+		}]
+	}
+	p.process_text_char(`\t`)
+	assert p.stack[0].children[0] == Element(RawText{})
+	p.code = true
+	p.process_text_char(`\t`)
+	assert p.stack[0].children[0] == Element(RawText{
+		txt: '    '
+	})
+
+	mut p2 := Parse{
+		stack: [&Balise{
+			children: []
+		}]
+	}
+	p2.process_text_char(`p`)
+	assert p2.stack[0].children[0] == Element(RawText{
+		txt: 'p'
+	})
+}
+
 fn test_sites() {
+	/*
+	add tests for all the supported websites
+	*/
 	get_tree('https://modules.vlang.io')!
 	get_tree('https://modules.vlang.io/gg.html')!
 	//	get_tree("https://modules.vlang.io/os.html")! //TODO FIX THIS ONE

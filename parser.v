@@ -65,7 +65,6 @@ fn is_end_of_not_closing_tag(c u8, c_1 u8) bool {
 	return c == `/` && c_1 == `>`
 }
 
-// not tested
 @[direct_array_access]
 fn get_tree(url string) ![]Balise {
 	println('___________________\nGetting ${url}')
@@ -117,7 +116,6 @@ fn (p Parse) is_actual_content(c u8) bool {
 	return is_not_unwanted_tabs && has_page_started
 }
 
-// not tested
 fn (mut p Parse) process_text_char(c u8) {
 	if p.is_actual_content(c) {
 		mut top := p.stack[p.stack.len - 1]
