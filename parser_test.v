@@ -7,6 +7,8 @@ complete the tests if you want are they are not finished
 
 module main
 
+import os
+
 fn test_check_is() {
 	a := Balise{
 		@type: .code
@@ -195,11 +197,33 @@ fn test_process_text_char() {
 	})
 }
 
+fn test_abort_process_open_tag() {
+	mut p := Parse{
+		in_balise: true
+		stack: [&Balise{}]
+		nb: 3
+	}
+	p.abort_process_open_tag(1)
+	assert p.in_balise == false
+	assert p.nb == 0
+	txt := (p.stack[0].children.last() as RawText).txt
+	assert txt[txt.len - 1] == `<`
+}
+
+fn v_fmt() {
+	assert os.execute("v fmt -verify .").output == ""
+}
+
 fn test_sites() {
 	/*
 	add tests for all the supported websites
 	*/
 	get_tree('https://modules.vlang.io')!
 	get_tree('https://modules.vlang.io/gg.html')!
+	get_tree('https://modules.vlang.io/arrays.html')!
+	get_tree('https://modules.vlang.io/bitfield.html')!
+	get_tree('https://modules.vlang.io/cli.html')!
+	get_tree('https://modules.vlang.io/clipboard.html')!
+	get_tree('https://modules.vlang.io/benchmark.html')!
 	//	get_tree("https://modules.vlang.io/os.html")! //TODO FIX THIS ONE
 }

@@ -184,16 +184,12 @@ fn (mut p Parse) close_tag() {
 	}
 }
 
-// not tested
 fn (mut p Parse) abort_process_open_tag(old_nb int) {
 	p.in_balise = false
 	mut last := p.stack[p.stack.len - 1]
-	empty := last.children.len == 0
-	if empty {
-		last.children << RawText{}
-	}
+	last.ensure_last_children_is_rawtext()
 	mut child := &(last.children[last.children.len - 1] as RawText)
-	child.txt += '<' // to not lose the >
+	child.txt += '<' // to not lose the <
 	p.nb = old_nb - 1
 }
 
