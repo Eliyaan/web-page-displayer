@@ -2,7 +2,7 @@
 Tests to ensure the parser works as intended
 
 add a test for each fix
-complete the tests if you want are they are not finished
+complete the tests if you want, they are not finished
 */
 
 module main
@@ -210,8 +210,76 @@ fn test_abort_process_open_tag() {
 	assert txt[txt.len - 1] == `<`
 }
 
-fn v_fmt() {
-	assert os.execute("v fmt -verify .").output == ""
+fn test_get_tag_name() {
+	mut p := Parse{
+		nb: 1
+		main_content: '<div>'
+	}
+	assert p.get_tag_name()! == 'div'
+	assert p.nb == 4
+	p = Parse{
+		nb: 1
+		main_content: '<!DOCTYPE html>'
+	}
+	assert p.get_tag_name()! == '!DOCTYPE'
+	assert p.nb == 9
+	p = Parse{
+		nb: 1
+		stack: [&Balise{}] // need to stack to have something to put the alone < in
+		main_content: '<i<'
+	}
+	assert p.get_tag_name() or { err.msg() } == 'abort, not a name'
+	assert p.nb == 0 // will be incremented at end of loop
+}
+
+fn test_create_tag_of_variant() {
+	mut p := Parse{}
+	p.create_tag_of_variant(.code)
+	assert p.stack[0] == &Balise{
+		@type: .code
+	}
+	assert p.stack.len == 1
+	assert p.code == true
+	p.create_tag_of_variant(.div)
+	assert p.stack[0].children[0] as Balise == p.stack[1]
+	assert p.stack[1] == Balise{
+		@type: .div
+	}
+	assert p.stack.len == 2
+
+	p = Parse{}
+	p.create_tag_of_variant(.p)
+	assert p.stack[0] == &Balise{
+		@type: .p
+	}
+	assert p.stack.len == 1
+	assert p.code == false
+}
+
+fn test_format_tag_name() {
+	assert format_tag_name('!DOCTYPE') == 'doctype'
+	assert format_tag_name('!doctype') == 'doctype'
+	assert format_tag_name('div') == 'div'
+}
+
+fn test_split_txt() {
+	mut b := Balise{
+		children: [
+			Element(RawText{
+				txt: 'Hey! \nHi!'
+			}),
+			Element(RawText{
+				txt: 'Hello...'
+			}),
+		]
+	}
+	b.split_txt()
+	assert (b.children[0] as RawText).split_txt == ['Hey! ', 'Hi!']
+	assert (b.children[1] as RawText).split_txt == ['Hello...']
+}
+
+fn test_v_fmt() {
+	assert os.execute('v fmt -verify .').output == '', 'a file needs v fmt'
 }
 
 fn test_sites() {
@@ -225,5 +293,17 @@ fn test_sites() {
 	get_tree('https://modules.vlang.io/cli.html')!
 	get_tree('https://modules.vlang.io/clipboard.html')!
 	get_tree('https://modules.vlang.io/benchmark.html')!
+	get_tree('https://modules.vlang.io/clipboard.dummy.html')!
+	get_tree('https://modules.vlang.io/clipboard.x11.html')!
+	get_tree('https://modules.vlang.io/compress.html')!
+	get_tree('https://modules.vlang.io/compress.deflate.html')!
+	get_tree('https://modules.vlang.io/compress.gzip.html')!
+	get_tree('https://modules.vlang.io/compress.szip.html')!
+	get_tree('https://modules.vlang.io/compress.zlib.html')!
+	get_tree('https://modules.vlang.io/compress.zstd.html')!
+	get_tree('https://modules.vlang.io/context.html')!
+	get_tree('https://modules.vlang.io/context.onecontext.html')!
+	get_tree('https://modules.vlang.io/coroutines.html')!
+	get_tree('https://modules.vlang.io/crypto.html')!
 	//	get_tree("https://modules.vlang.io/os.html")! //TODO FIX THIS ONE
 }
