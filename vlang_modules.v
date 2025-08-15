@@ -25,7 +25,6 @@ read-me to encourage to contribute/use
 report flashing in gg's ui-mode
 */
 import gg
-import gx
 
 const toc_w = 360
 const modules_w = 200
@@ -37,7 +36,7 @@ mut:
 	tree     Element
 	url      string
 	readme   []string
-	text_cfg gx.TextCfg = gx.TextCfg{
+	text_cfg gg.TextCfg = gg.TextCfg{
 		size: 18
 		color: gg.Color{255, 255, 255, 255}
 	}
@@ -92,7 +91,7 @@ fn (mut r VlangModules) resize(width int) {
 	r.modules = []
 	base_txt := Text{
 		size: u8(r.text_cfg.size)
-		color: gx.white
+		color: gg.white
 	}
 	println('Searching doc-content')
 	content := r.tree.get(.div, 'doc-content', '') or { panic('did not find elem in page') }
@@ -153,7 +152,7 @@ fn (mut v VlangModules) show_toc(mut app App, offset int) {
 						}
 					}
 				}
-				app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
+				app.ctx.draw_text(t.w + offset, h, t.t, gg.TextCfg{ color: t.color, size: t.size })
 				if h > app.s_size.height {
 					break
 				}
@@ -189,7 +188,7 @@ fn (mut v VlangModules) show_modules(mut app App, offset int) {
 						}
 					}
 				}
-				app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
+				app.ctx.draw_text(t.w + offset, h, t.t, gg.TextCfg{ color: t.color, size: t.size })
 				if h > app.s_size.height {
 					break
 				}
@@ -215,7 +214,7 @@ fn (v VlangModules) show_content(app App, offset int) {
 		for t in v.content {
 			h := t.h - app.scroll
 			if h + t.size >= 0 {
-				app.ctx.draw_text(t.w + offset, h, t.t, gx.TextCfg{ color: t.color, size: t.size })
+				app.ctx.draw_text(t.w + offset, h, t.t, gg.TextCfg{ color: t.color, size: t.size })
 				if h > app.s_size.height {
 					break
 				}

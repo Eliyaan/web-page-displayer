@@ -1,10 +1,9 @@
 module main
 
 import gg
-import gx
 import os
 
-const basic_cfg = gx.TextCfg{
+const basic_cfg = gg.TextCfg{
 	color: gg.Color{200, 200, 200, 255}
 	size: 16
 }
